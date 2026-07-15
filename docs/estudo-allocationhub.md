@@ -269,4 +269,46 @@ sentar no que decide o resultado.
 - O LLM **enriquece**, não decide. Não venda "IA que faz o match" — venda "regra auditável + IA na borda".
 - Se perguntarem "isso foi pra um cliente?": honesto — *"construí como projeto real pra dominar a engenharia
   de IA em produção; a experiência de cliente de grande porte eu trago do financeiro."*
+
+---
+
+## 7. Status v2 — está CONSTRUÍDO e provado (o que rodar e o que falta de você)
+
+Os 4 recursos + guardrails/evals estão implementados, testados e commitados (branch
+`feat/v2-multillm-github-docker`). **17 testes verdes** (regra de match + evals do guardrail do LLM).
+
+**Provado ao vivo:**
+- Busca real do GitHub retornando devs reais (ex.: Baltieri/Pires/Groffe para .NET; Sebastian Lague para
+  Azure/.NET) — só pessoas (`type:user`), skills inferidas dos repos.
+- Multi-LLM: com chave setada o provider aparece em `/api/llm/providers`; chamada inválida cai no
+  determinístico sem erro (resiliência). Sem chave, a app roda 100% no determinístico.
+
+**Como rodar (dev):**
+```bash
+# backend (localhost:5080)
+cd src/AllocationHub.Api && DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet run
+# frontend (localhost:4200)
+cd web && npm install && npm start
+```
+**Como rodar (tudo em Docker):** `docker compose up --build` → http://localhost:8080.
+
+**Passos SEUS para o LLM aparecer ao vivo (grátis, ~2 min) — Groq:**
+1. Entrar em https://console.groq.com (login com Google/GitHub).
+2. Menu esquerdo → **API Keys** → **Create API Key** → nome "allocationhub" → **Submit** → copiar (`gsk_...`).
+3. No terminal, antes de subir a API: `export GROQ_API_KEY=gsk_...` (ou colocar num arquivo de ambiente
+   local — **nunca** commitar). Suba a API de novo → o seletor "Explanation by: [groq]" aparece na tela de
+   match; troque o provider e veja a explicação ser reescrita pelo modelo.
+
+**(Opcional) Token do GitHub** (sobe o limite de 60 → 5000 buscas/h):
+https://github.com/settings/tokens?type=beta → **Generate new token** (fine-grained) → *Public Repositories
+(read-only)* → copiar (`github_pat_...`) → `export GITHUB_TOKEN=github_pat_...`.
+
+**Falas novas para a entrevista técnica (além das da §4):**
+- *"Coloquei um guardrail entre o LLM e a tela: a saída do modelo só é exibida se passar num eval que
+  rejeita skill alucinada, eco de prompt-injection e tamanho fora do limite — senão volta pro determinístico.
+  Esse mesmo eval roda no CI como quality gate."*
+- *"Os provedores de LLM entram por uma lista de config; um cliente OpenAI-compatível serve todos. Um
+  provider só é oferecido se a chave dele existir no ambiente — segredo nunca vai pro git nem pro modelo."*
+- *"Docker multi-stage: o estágio de build roda os testes, então um commit quebrado não gera imagem. O
+  front é servido por nginx que ainda reverse-proxeia a API — um domínio só, sem CORS em produção."*
 ```
