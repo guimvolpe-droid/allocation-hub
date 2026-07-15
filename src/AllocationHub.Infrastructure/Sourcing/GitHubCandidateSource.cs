@@ -59,7 +59,8 @@ public class GitHubCandidateSource : ICandidateSource
             .Select(s => ToGitHubLanguage.GetValueOrDefault(s.Trim()))
             .FirstOrDefault(x => x is not null) ?? "C#";
 
-        var q = $"language:{language} repos:>5";
+        // type:user excludes organizations — we're sourcing people, not company accounts.
+        var q = $"language:{language} type:user repos:>5";
         if (!string.IsNullOrWhiteSpace(options.Location))
             q += $" location:{options.Location.Trim()}";
 
