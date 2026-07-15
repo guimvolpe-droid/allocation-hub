@@ -1,5 +1,7 @@
 # AllocationHub
 
+[![CI](https://github.com/guimvolpe-droid/allocation-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/guimvolpe-droid/allocation-hub/actions/workflows/ci.yml)
+
 A staffing/allocation manager for a **software house**: register consultants, clients and client
 demands, then **match** the best available consultants to a demand by skills, seniority and
 availability — and turn a recommendation into an allocation.
@@ -19,8 +21,26 @@ SQLite · JWT auth. Architecture: **Clean Architecture** (dependencies point inw
   human-readable explanation sits behind an interface (`IMatchExplanationService`) with an optional LLM
   implementation — so AI never sits on the critical path of a demo, and business rules are never coupled
   to an external vendor.
+- **Real external sourcing.** From a demand you can source **real developer profiles** from the official
+  **GitHub API** (behind `ICandidateSource`), ranked by the same matching rule. LinkedIn has no compliant
+  people-search API, so GitHub is the honest real-data source for a developer-staffing tool.
+- **Multi-LLM, switchable live.** The explanation can be rewritten by an LLM through a single
+  OpenAI-compatible client that serves **Groq, OpenRouter, OpenAI and local Ollama** — chosen per request.
+  Every output passes a **guardrail** (no hallucinated skills, no prompt-injection echo, bounded length)
+  and falls back to the deterministic baseline on any failure. The guardrail runs in CI as an **eval gate**.
 
 ## Run it
+
+### With Docker (whole system)
+
+```bash
+docker compose up --build      # then open http://localhost:8080
+```
+
+Optional: create a `.env` next to `docker-compose.yml` with `GROQ_API_KEY=...` (enables the live LLM
+switch) and `GITHUB_TOKEN=...` (lifts the GitHub rate limit from 60 to 5000 req/h).
+
+### Locally (dev)
 
 ```bash
 # Backend (http://localhost:5080, Swagger at /swagger)
