@@ -1,4 +1,5 @@
 using AllocationHub.Api.Mapping;
+using AllocationHub.Core.Ai;
 using AllocationHub.Core.Domain;
 using AllocationHub.Core.Dtos;
 using AllocationHub.Core.Matching;
@@ -18,13 +19,14 @@ public class DemandsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly MatchingService _matching;
     private readonly IMatchExplanationService _explanation;
+    private readonly ILlmExplanationService _llm;
     private readonly IEnumerable<ICandidateSource> _sources;
 
     public DemandsController(
-        AppDbContext db, MatchingService matching,
-        IMatchExplanationService explanation, IEnumerable<ICandidateSource> sources)
+        AppDbContext db, MatchingService matching, IMatchExplanationService explanation,
+        ILlmExplanationService llm, IEnumerable<ICandidateSource> sources)
     {
-        _db = db; _matching = matching; _explanation = explanation; _sources = sources;
+        _db = db; _matching = matching; _explanation = explanation; _llm = llm; _sources = sources;
     }
 
     [HttpGet]
@@ -79,23 +81,47 @@ public class DemandsController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>The recommendation: rank every consultant for this demand with an explainable score.</summary>
+    /// <summary>
+    /// The recommendation: rank every consultant for this demand with an explainable score. The
+    /// deterministic explanation is always computed; pass <paramref name="provider"/> (e.g. "groq") to have
+    /// that LLM rewrite each explanation — guarded, with fallback to the deterministic text.
+    /// </summary>
     [HttpGet("{id:int}/matches")]
-    public async Task<ActionResult<List<MatchDto>>> Matches(int id)
+    public async Task<ActionResult<List<MatchDto>>> Matches(
+        int id, [FromQuery] string? provider = null, CancellationToken ct = default)
     {
-        var demand = await _db.Demands.FindAsync(id);
+        var demand = await _db.Demands.FindAsync(new object?[] { id }, ct);
         if (demand is null) return NotFound();
 
         // Weights are administered from the Settings screen; the pure rule receives them as input.
-        var settings = await _db.MatchingSettings.AsNoTracking().FirstOrDefaultAsync();
-        var weights = settings?.ToWeights() ?? Core.Matching.MatchingWeights.Default;
+        var settings = await _db.MatchingSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        var weights = settings?.ToWeights() ?? MatchingWeights.Default;
 
-        var consultants = await _db.Consultants.AsNoTracking().ToListAsync();
+        var consultants = await _db.Consultants.AsNoTracking().ToListAsync(ct);
         var ranked = _matching.Rank(demand, consultants, weights);
 
-        return ranked.Select(r => new MatchDto(
+        var explanations = await EnrichAsync(
+            demand, ranked.Select(r => (r.Consultant, r.Score, r.Explanation)), provider, ct);
+
+        return ranked.Select((r, i) => new MatchDto(
             r.Consultant.Id, r.Consultant.Name, r.Consultant.Seniority, r.Consultant.Availability,
-            r.Score.Score, r.Score.MatchedSkills, r.Score.MissingSkills, r.Explanation)).ToList();
+            r.Score.Score, r.Score.MatchedSkills, r.Score.MissingSkills, explanations[i])).ToList();
+    }
+
+    /// <summary>
+    /// Turns baseline explanations into LLM-written ones when a provider is requested — in parallel, and
+    /// each one guarded (bad or hallucinated output falls back to its deterministic baseline).
+    /// </summary>
+    private async Task<List<string>> EnrichAsync(
+        Demand demand, IEnumerable<(Consultant c, MatchScore s, string baseline)> items,
+        string? provider, CancellationToken ct)
+    {
+        var list = items.ToList();
+        if (string.IsNullOrWhiteSpace(provider))
+            return list.Select(x => x.baseline).ToList();
+
+        var tasks = list.Select(x => _llm.ExplainAsync(demand, x.c, x.s, x.baseline, provider, ct));
+        return (await Task.WhenAll(tasks)).ToList();
     }
 
     /// <summary>
@@ -106,7 +132,7 @@ public class DemandsController : ControllerBase
     [HttpGet("{id:int}/external-matches")]
     public async Task<ActionResult<IReadOnlyList<ExternalMatchDto>>> ExternalMatches(
         int id, [FromQuery] string source = "github", [FromQuery] string? location = null,
-        [FromQuery] int limit = 6, CancellationToken ct = default)
+        [FromQuery] int limit = 6, [FromQuery] string? provider = null, CancellationToken ct = default)
     {
         var demand = await _db.Demands.FindAsync(new object?[] { id }, ct);
         if (demand is null) return NotFound();
@@ -127,17 +153,21 @@ public class DemandsController : ControllerBase
             return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
         }
 
-        return candidates
-            .Select(cand =>
-            {
-                var consultant = cand.ToConsultant();
-                var score = _matching.Score(demand, consultant, weights);
-                var explanation = _explanation.Explain(demand, consultant, score);
-                return new ExternalMatchDto(
-                    cand.ExternalId, cand.Name, cand.Headline, cand.ProfileUrl, cand.AvatarUrl,
-                    cand.Location, cand.InferredSeniority, score.Score,
-                    score.MatchedSkills, score.MissingSkills, cand.Skills, explanation, cand.SourceName);
-            })
+        var scored = candidates.Select(cand =>
+        {
+            var consultant = cand.ToConsultant();
+            var score = _matching.Score(demand, consultant, weights);
+            var baseline = _explanation.Explain(demand, consultant, score);
+            return (cand, consultant, score, baseline);
+        }).ToList();
+
+        var explanations = await EnrichAsync(
+            demand, scored.Select(x => (x.consultant, x.score, x.baseline)), provider, ct);
+
+        return scored.Select((x, i) => new ExternalMatchDto(
+                x.cand.ExternalId, x.cand.Name, x.cand.Headline, x.cand.ProfileUrl, x.cand.AvatarUrl,
+                x.cand.Location, x.cand.InferredSeniority, x.score.Score,
+                x.score.MatchedSkills, x.score.MissingSkills, x.cand.Skills, explanations[i], x.cand.SourceName))
             .OrderByDescending(r => r.Score)
             .ToList();
     }

@@ -8,6 +8,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../core/api.service';
 import { Demand, ExternalMatch, Match } from '../../core/models';
@@ -17,7 +18,7 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
   standalone: true,
   imports: [
     RouterLink, FormsModule, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
-    MatProgressBarModule, MatFormFieldModule, MatInputModule
+    MatProgressBarModule, MatFormFieldModule, MatInputModule, MatSelectModule
   ],
   template: `
     <a mat-button routerLink="/demands"><mat-icon>arrow_back</mat-icon> Demands</a>
@@ -32,6 +33,19 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
 
     <h2>Recommended consultants</h2>
     <p class="explain">Ranked by a transparent score: availability, seniority fit and matched skills.</p>
+
+    @if (llmAvailable()) {
+      <div class="llm-switch">
+        <mat-form-field appearance="outline" class="prov">
+          <mat-label>Explanation by</mat-label>
+          <mat-select [(value)]="provider" (selectionChange)="onProviderChange()">
+            <mat-option value="">Deterministic (offline)</mat-option>
+            @for (p of llmProviders(); track p) { <mat-option [value]="p">{{ p }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <span class="hint">Switch the LLM live · guarded, falls back to deterministic on failure</span>
+      </div>
+    }
 
     @if (busy()) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
 
@@ -115,6 +129,9 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .why { color: #555; font-size: .88rem; }
     .muted { color: #999; }
     .err { color: #b71c1c; font-size: .9rem; margin: 6px 0; }
+    .llm-switch { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; }
+    .llm-switch .prov { width: 220px; }
+    .llm-switch .hint { color: #6a1b9a; font-size: .82rem; }
     .ext-head { margin-top: 30px; border-top: 1px solid #eee; padding-top: 14px; }
     .ext-head .src { color: #6a1b9a; font-weight: 600; }
     .ext-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
@@ -132,6 +149,11 @@ export class MatchComponent {
   matches = signal<Match[]>([]);
   busy = signal(false);
 
+  // Multi-LLM live switch. '' = deterministic (offline) baseline.
+  provider = '';
+  llmProviders = signal<string[]>([]);
+  llmAvailable = signal(false);
+
   // External (GitHub) sourcing state
   location = '';
   externalMatches = signal<ExternalMatch[]>([]);
@@ -143,12 +165,21 @@ export class MatchComponent {
 
   constructor() {
     this.api.getDemand(this.id).subscribe(d => this.demand.set(d));
+    this.api.llmProviders().subscribe(p => {
+      this.llmProviders.set(p.providers);
+      this.llmAvailable.set(p.available);
+    });
     this.load();
+  }
+
+  onProviderChange(): void {
+    this.load();
+    if (this.extSearched()) this.searchGitHub();
   }
 
   private load(): void {
     this.busy.set(true);
-    this.api.matches(this.id).subscribe({
+    this.api.matches(this.id, this.provider || undefined).subscribe({
       next: m => { this.matches.set(m); this.busy.set(false); },
       error: () => this.busy.set(false),
     });
@@ -158,7 +189,7 @@ export class MatchComponent {
     this.extBusy.set(true);
     this.extError.set(null);
     this.extSearched.set(true);
-    this.api.externalMatches(this.id, 'github', this.location.trim() || undefined).subscribe({
+    this.api.externalMatches(this.id, 'github', this.location.trim() || undefined, 6, this.provider || undefined).subscribe({
       next: m => { this.externalMatches.set(m); this.extBusy.set(false); },
       error: err => {
         this.externalMatches.set([]);

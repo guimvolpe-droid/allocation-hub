@@ -2,8 +2,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Serialization;
 using AllocationHub.Core.Abstractions;
+using AllocationHub.Core.Ai;
 using AllocationHub.Core.Matching;
 using AllocationHub.Core.Sourcing;
+using AllocationHub.Infrastructure.Ai;
 using AllocationHub.Infrastructure.Data;
 using AllocationHub.Infrastructure.Matching;
 using AllocationHub.Infrastructure.Security;
@@ -49,6 +51,23 @@ builder.Services.AddHttpClient<GitHubCandidateSource>(c =>
         c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 });
 builder.Services.AddScoped<ICandidateSource>(sp => sp.GetRequiredService<GitHubCandidateSource>());
+
+// ---- Multi-LLM: several OpenAI-compatible providers, resolved by name, switchable per request ----
+// A provider is only usable when enabled AND its API key is present; otherwise the app falls back to the
+// deterministic explanation. Keys come from the environment (.env), never from appsettings/git.
+var llmOptions = builder.Configuration.GetSection("Llm").Get<LlmOptions>() ?? new LlmOptions();
+builder.Services.AddSingleton(llmOptions);
+builder.Services.AddHttpClient("llm", c => c.Timeout = TimeSpan.FromSeconds(llmOptions.TimeoutSeconds));
+builder.Services.AddSingleton<ILlmProviderRegistry>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new LlmProviderRegistry(
+        llmOptions,
+        () => factory.CreateClient("llm"),
+        envName => config[envName] ?? Environment.GetEnvironmentVariable(envName));
+});
+builder.Services.AddScoped<ILlmExplanationService, LlmExplanationService>();
 
 // ---- Auth ----
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
