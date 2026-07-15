@@ -30,6 +30,7 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 // interface) to get model-written explanations — without touching the matching rule.
 builder.Services.AddScoped<IMatchExplanationService, DeterministicMatchExplanationService>();
 builder.Services.AddScoped<MatchingService>();
+builder.Services.AddScoped<AllocationHub.Infrastructure.Data.AuditWriter>();
 
 // ---- Auth ----
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

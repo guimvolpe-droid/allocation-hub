@@ -3,8 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_URL } from './config';
 import {
-  Allocation, Client, ClientRequest, Consultant, ConsultantRequest,
-  DashboardSummary, Demand, DemandRequest, Match
+  Allocation, AuditLog, Client, ClientRequest, Consultant, ConsultantRequest,
+  DashboardSummary, Demand, DemandRequest, Match, MatchingSettings, MatchingSettingsRequest
 } from './models';
 
 /** Thin typed wrapper over the REST API. One place that knows the endpoints. */
@@ -49,4 +49,10 @@ export class ApiService {
     return this.http.post<Allocation>(`${API_URL}/allocations`, { demandId, consultantId, startDate });
   }
   endAllocation(id: number) { return this.http.post<Allocation>(`${API_URL}/allocations/${id}/end`, {}); }
+
+  // Admin: matching settings + audit
+  getMatchingSettings() { return this.http.get<MatchingSettings>(`${API_URL}/settings/matching`); }
+  updateMatchingSettings(r: MatchingSettingsRequest) { return this.http.put<MatchingSettings>(`${API_URL}/settings/matching`, r); }
+  listAudit() { return this.http.get<AuditLog[]>(`${API_URL}/audit`); }
 }
+

@@ -81,8 +81,12 @@ public class DemandsController : ControllerBase
         var demand = await _db.Demands.FindAsync(id);
         if (demand is null) return NotFound();
 
+        // Weights are administered from the Settings screen; the pure rule receives them as input.
+        var settings = await _db.MatchingSettings.AsNoTracking().FirstOrDefaultAsync();
+        var weights = settings?.ToWeights() ?? Core.Matching.MatchingWeights.Default;
+
         var consultants = await _db.Consultants.AsNoTracking().ToListAsync();
-        var ranked = _matching.Rank(demand, consultants);
+        var ranked = _matching.Rank(demand, consultants, weights);
 
         return ranked.Select(r => new MatchDto(
             r.Consultant.Id, r.Consultant.Name, r.Consultant.Seniority, r.Consultant.Availability,

@@ -41,6 +41,17 @@ public record MatchDto(
     int ConsultantId, string Name, Seniority Seniority, Availability Availability,
     int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation);
 
+// ---- Admin: matching settings ----
+public record MatchingSettingsDto(
+    int AvailabilityWeight, int SkillWeight, int SeniorityWeight, int AllocatedPenalty,
+    DateTime updatedAt, string updatedBy);
+
+public record MatchingSettingsRequest(
+    int AvailabilityWeight, int SkillWeight, int SeniorityWeight, int AllocatedPenalty);
+
+// ---- Admin: audit ----
+public record AuditLogDto(int Id, string Actor, string Action, string Entity, string Details, DateTime CreatedAt);
+
 // ---- Dashboard ----
 public record DashboardSummary(
     int TotalConsultants, int AvailableConsultants, int AllocatedConsultants, int OpenDemands,

@@ -26,23 +26,33 @@ public interface IMatchExplanationService
 }
 
 /// <summary>
+/// The tunable weights of the matching rule. Defaults live here; the running values are administered
+/// from the Settings screen and persisted, then passed into the (still pure) rule. Keeping the weights
+/// as a value object is what lets the operation reconfigure the algorithm without a code change.
+/// </summary>
+public record MatchingWeights(
+    int AvailabilityBonus,
+    int SkillPoints,
+    int SeniorityBonus,
+    int AllocatedPenalty)
+{
+    public static readonly MatchingWeights Default = new(
+        AvailabilityBonus: 50, SkillPoints: 10, SeniorityBonus: 20, AllocatedPenalty: -30);
+}
+
+/// <summary>
 /// Pure, framework- and database-free matching rule. This is the business core of the app and the
-/// only thing that must be unit-tested: given a demand and candidates, it produces an explainable,
-/// ranked recommendation. See docs/matching.md for the formula.
+/// only thing that must be unit-tested: given a demand, candidates and weights, it produces an
+/// explainable, ranked recommendation. See docs/matching.md for the formula.
 /// </summary>
 public class MatchingService
 {
-    public const int AvailableBonus = 50;
-    public const int SkillPoints = 10;
-    public const int SeniorityBonus = 20;
-    public const int AllocatedPenalty = -30;
-
     private readonly IMatchExplanationService _explanation;
 
     public MatchingService(IMatchExplanationService explanation) => _explanation = explanation;
 
     /// <summary>Scores a single consultant against a demand. Deterministic and side-effect free.</summary>
-    public MatchScore Score(Demand demand, Consultant consultant)
+    public MatchScore Score(Demand demand, Consultant consultant, MatchingWeights weights)
     {
         var owned = Normalize(consultant.Skills);
 
@@ -54,21 +64,21 @@ public class MatchingService
         var meetsSeniority = consultant.Seniority >= demand.RequiredSeniority;
 
         var score = 0;
-        if (consultant.Availability == Availability.Available) score += AvailableBonus;
-        if (consultant.Availability == Availability.Allocated) score += AllocatedPenalty;
-        if (meetsSeniority) score += SeniorityBonus;
-        score += matched.Count * SkillPoints;
+        if (consultant.Availability == Availability.Available) score += weights.AvailabilityBonus;
+        if (consultant.Availability == Availability.Allocated) score += weights.AllocatedPenalty;
+        if (meetsSeniority) score += weights.SeniorityBonus;
+        score += matched.Count * weights.SkillPoints;
 
         return new MatchScore(score, matched, missing, meetsSeniority);
     }
 
     /// <summary>Ranks all candidates for a demand, best first. Ties broken by seniority then name.</summary>
-    public IReadOnlyList<MatchResult> Rank(Demand demand, IEnumerable<Consultant> candidates)
+    public IReadOnlyList<MatchResult> Rank(Demand demand, IEnumerable<Consultant> candidates, MatchingWeights weights)
     {
         return candidates
             .Select(c =>
             {
-                var score = Score(demand, c);
+                var score = Score(demand, c, weights);
                 return new MatchResult(c, score, _explanation.Explain(demand, c, score));
             })
             .OrderByDescending(r => r.Score.Score)

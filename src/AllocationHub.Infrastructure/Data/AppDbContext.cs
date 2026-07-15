@@ -12,6 +12,8 @@ public class AppDbContext : DbContext
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<Demand> Demands => Set<Demand>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
+    public DbSet<MatchingSettings> MatchingSettings => Set<MatchingSettings>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

@@ -22,6 +22,9 @@ public static class DbSeeder
             PasswordHash = hasher.Hash("admin123"), Role = UserRole.Admin
         });
 
+        // The single active matching configuration (weights). Seeded with the documented defaults.
+        db.MatchingSettings.Add(new MatchingSettings { UpdatedBy = "system" });
+
         var consultants = new List<Consultant>
         {
             new() { Name = "Gustavo Vieira", Email = "gustavo@bench.dev", Seniority = Seniority.Senior,

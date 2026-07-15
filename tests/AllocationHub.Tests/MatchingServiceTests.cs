@@ -13,6 +13,7 @@ public class MatchingServiceTests
     }
 
     private readonly MatchingService _svc = new(new NoExplanation());
+    private readonly MatchingWeights W = MatchingWeights.Default;
 
     private static Demand DotNetDemand() => new()
     {
@@ -30,7 +31,7 @@ public class MatchingServiceTests
             Skills = new() { ".NET", "Kafka", "SQL Server", "Azure" }
         };
 
-        var score = _svc.Score(DotNetDemand(), c);
+        var score = _svc.Score(DotNetDemand(), c, W);
 
         // +50 available, +20 seniority meets, +10*3 skills
         Assert.Equal(100, score.Score);
@@ -47,7 +48,7 @@ public class MatchingServiceTests
             Skills = new() { ".net", "sql server" } // lower-case on purpose
         };
 
-        var score = _svc.Score(DotNetDemand(), c);
+        var score = _svc.Score(DotNetDemand(), c, W);
 
         Assert.Equal(new[] { ".NET", "SQL Server" }, score.MatchedSkills);
         Assert.Equal(new[] { "Kafka" }, score.MissingSkills); // original casing preserved
@@ -63,7 +64,7 @@ public class MatchingServiceTests
             Skills = new() { ".NET", "Kafka", "SQL Server" }
         };
 
-        var score = _svc.Score(DotNetDemand(), c);
+        var score = _svc.Score(DotNetDemand(), c, W);
 
         // -30 allocated, +20 seniority (Lead >= Senior), +30 skills
         Assert.Equal(20, score.Score);
@@ -78,7 +79,7 @@ public class MatchingServiceTests
             Skills = new() { ".NET" }
         };
 
-        var score = _svc.Score(DotNetDemand(), c);
+        var score = _svc.Score(DotNetDemand(), c, W);
 
         Assert.False(score.MeetsSeniority);
         Assert.Equal(50 + 10, score.Score); // available + 1 skill, no seniority bonus
@@ -93,9 +94,26 @@ public class MatchingServiceTests
         var weak = new Consultant { Name = "Weak", Seniority = Seniority.Junior,
             Availability = Availability.Unavailable, Skills = new() { "PHP" } };
 
-        var ranked = _svc.Rank(demand, new[] { weak, strong });
+        var ranked = _svc.Rank(demand, new[] { weak, strong }, W);
 
         Assert.Equal("Strong", ranked[0].Consultant.Name);
         Assert.True(ranked[0].Score.Score > ranked[1].Score.Score);
+    }
+
+    [Fact]
+    public void Custom_weights_change_the_score()
+    {
+        var c = new Consultant
+        {
+            Seniority = Seniority.Senior, Availability = Availability.Available,
+            Skills = new() { ".NET" } // 1 matched skill
+        };
+
+        // Skill weight raised from 10 to 100: the single matched skill now dominates.
+        var heavy = W with { SkillPoints = 100 };
+        var score = _svc.Score(DotNetDemand(), c, heavy);
+
+        // +50 available, +20 seniority, +100 for the one matched skill
+        Assert.Equal(170, score.Score);
     }
 }

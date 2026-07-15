@@ -7,6 +7,10 @@ decision.
 
 ## Score formula
 
+The weights below are the **defaults**, and they are **administered from the Matching Settings
+screen** (persisted, audited). The rule itself stays pure: it receives the weights as input, so the
+operation can retune the algorithm without a code change.
+
 Starting from `0`, for each candidate consultant against a demand:
 
 | Rule | Points | Why |

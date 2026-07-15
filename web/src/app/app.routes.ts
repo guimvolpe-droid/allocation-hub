@@ -16,6 +16,8 @@ export const routes: Routes = [
       { path: 'demands', loadComponent: () => import('./features/demands/demands.component').then(m => m.DemandsComponent) },
       { path: 'demands/:id/matches', loadComponent: () => import('./features/match/match.component').then(m => m.MatchComponent) },
       { path: 'allocations', loadComponent: () => import('./features/allocations/allocations.component').then(m => m.AllocationsComponent) },
+      { path: 'settings', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
+      { path: 'audit', loadComponent: () => import('./features/audit/audit.component').then(m => m.AuditComponent) },
     ]
   },
   { path: '**', redirectTo: '' }

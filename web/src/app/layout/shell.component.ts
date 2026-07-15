@@ -30,6 +30,9 @@ import { AuthService } from '../core/auth.service';
           <a mat-list-item routerLink="/clients" routerLinkActive="active"><mat-icon matListItemIcon>business</mat-icon> Clients</a>
           <a mat-list-item routerLink="/demands" routerLinkActive="active"><mat-icon matListItemIcon>work</mat-icon> Demands</a>
           <a mat-list-item routerLink="/allocations" routerLinkActive="active"><mat-icon matListItemIcon>assignment_ind</mat-icon> Allocations</a>
+          <div class="section">Admin</div>
+          <a mat-list-item routerLink="/settings" routerLinkActive="active"><mat-icon matListItemIcon>tune</mat-icon> Matching settings</a>
+          <a mat-list-item routerLink="/audit" routerLinkActive="active"><mat-icon matListItemIcon>history</mat-icon> Audit log</a>
         </mat-nav-list>
       </mat-sidenav>
       <mat-sidenav-content class="content">
@@ -46,6 +49,7 @@ import { AuthService } from '../core/auth.service';
     .sidenav { width: 232px; padding-top: 8px; border-right: 1px solid rgba(0,0,0,.08); }
     .content { padding: 24px; background: #f7f8fa; }
     a.active { background: rgba(0,0,0,.06); font-weight: 600; }
+    .section { padding: 14px 16px 4px; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #999; }
   `],
 })
 export class ShellComponent {

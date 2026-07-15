@@ -40,6 +40,17 @@ export interface Match {
   score: number; matchedSkills: string[]; missingSkills: string[]; explanation: string;
 }
 
+export interface MatchingSettings {
+  availabilityWeight: number; skillWeight: number; seniorityWeight: number; allocatedPenalty: number;
+  updatedAt: string; updatedBy: string;
+}
+export interface MatchingSettingsRequest {
+  availabilityWeight: number; skillWeight: number; seniorityWeight: number; allocatedPenalty: number;
+}
+export interface AuditLog {
+  id: number; actor: string; action: string; entity: string; details: string; createdAt: string;
+}
+
 export interface DashboardSummary {
   totalConsultants: number; availableConsultants: number; allocatedConsultants: number;
   openDemands: number; topOpenDemands: Demand[]; availableNow: Consultant[];
