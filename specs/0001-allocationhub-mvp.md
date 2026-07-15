@@ -1,6 +1,6 @@
 # Spec 0001 — AllocationHub MVP
 
-> Estado: doing
+> Estado: done
 > Goal: a runnable, demo-worthy staffing-allocation app (Angular + .NET) that models a software
 > house's core problem, built spec-first. Buildable in ~7h; scope is deliberately cut.
 

@@ -1,0 +1,10 @@
+/* Global styles */
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; color: #1a1a1a; }
+
+/* Table rows a touch roomier for a back-office feel */
+table.full td, table.full th { padding: 10px 14px; }
+.mat-mdc-row:hover { background: #fafbfc; }
+
+/* Tighten Material chips used as tags */
+.mat-mdc-standard-chip { --mdc-chip-container-height: 24px; }
