@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- This WSL has no libicu; run culture-invariant so the app doesn't need ICU at runtime. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- NETSDK1188: analyzer packages ship locale resources the invariant SDK doesn't recognize. Noise. -->
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
+  </PropertyGroup>
+</Project>

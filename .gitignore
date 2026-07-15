@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Node / Angular
+node_modules/
+web/dist/
+web/.angular/
+
+# local env files
+*.local
+.env
+.env.*
