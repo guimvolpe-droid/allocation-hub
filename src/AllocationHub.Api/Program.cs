@@ -16,7 +16,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls("http://localhost:5080");
+// Local dev binds localhost:5080; in a container ASPNETCORE_URLS (e.g. http://+:8080) takes over.
+if (string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_URLS"]))
+    builder.WebHost.UseUrls("http://localhost:5080");
 
 // ---- JSON: serialize enums as strings (nicer contract for the Angular client) ----
 builder.Services.AddControllers().AddJsonOptions(o =>

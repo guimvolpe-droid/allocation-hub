@@ -1,0 +1,11 @@
+# Root context (API image). Keep the build context small and reproducible.
+**/bin
+**/obj
+**/*.db
+**/*.db-shm
+**/*.db-wal
+web
+.git
+.github
+.vs
+**/.DS_Store
