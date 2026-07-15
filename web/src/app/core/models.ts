@@ -40,6 +40,12 @@ export interface Match {
   score: number; matchedSkills: string[]; missingSkills: string[]; explanation: string;
 }
 
+export interface ExternalMatch {
+  externalId: string; name: string; headline: string | null; profileUrl: string; avatarUrl: string | null;
+  location: string | null; seniority: Seniority; score: number;
+  matchedSkills: string[]; missingSkills: string[]; skills: string[]; explanation: string; source: string;
+}
+
 export interface MatchingSettings {
   availabilityWeight: number; skillWeight: number; seniorityWeight: number; allocatedPenalty: number;
   updatedAt: string; updatedBy: string;

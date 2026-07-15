@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { API_URL } from './config';
 import {
   Allocation, AuditLog, Client, ClientRequest, Consultant, ConsultantRequest,
-  DashboardSummary, Demand, DemandRequest, Match, MatchingSettings, MatchingSettingsRequest
+  DashboardSummary, Demand, DemandRequest, ExternalMatch, Match, MatchingSettings, MatchingSettingsRequest
 } from './models';
 
 /** Thin typed wrapper over the REST API. One place that knows the endpoints. */
@@ -42,6 +42,11 @@ export class ApiService {
   updateDemand(id: number, r: DemandRequest) { return this.http.put<Demand>(`${API_URL}/demands/${id}`, r); }
   deleteDemand(id: number) { return this.http.delete<void>(`${API_URL}/demands/${id}`); }
   matches(id: number) { return this.http.get<Match[]>(`${API_URL}/demands/${id}/matches`); }
+  externalMatches(id: number, source = 'github', location?: string, limit = 6): Observable<ExternalMatch[]> {
+    let params = new HttpParams().set('source', source).set('limit', limit);
+    if (location) params = params.set('location', location);
+    return this.http.get<ExternalMatch[]>(`${API_URL}/demands/${id}/external-matches`, { params });
+  }
 
   // Allocations
   listAllocations() { return this.http.get<Allocation[]>(`${API_URL}/allocations`); }

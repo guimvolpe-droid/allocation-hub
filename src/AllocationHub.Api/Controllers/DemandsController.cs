@@ -2,6 +2,7 @@ using AllocationHub.Api.Mapping;
 using AllocationHub.Core.Domain;
 using AllocationHub.Core.Dtos;
 using AllocationHub.Core.Matching;
+using AllocationHub.Core.Sourcing;
 using AllocationHub.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +17,14 @@ public class DemandsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly MatchingService _matching;
+    private readonly IMatchExplanationService _explanation;
+    private readonly IEnumerable<ICandidateSource> _sources;
 
-    public DemandsController(AppDbContext db, MatchingService matching)
+    public DemandsController(
+        AppDbContext db, MatchingService matching,
+        IMatchExplanationService explanation, IEnumerable<ICandidateSource> sources)
     {
-        _db = db; _matching = matching;
+        _db = db; _matching = matching; _explanation = explanation; _sources = sources;
     }
 
     [HttpGet]
@@ -91,5 +96,49 @@ public class DemandsController : ControllerBase
         return ranked.Select(r => new MatchDto(
             r.Consultant.Id, r.Consultant.Name, r.Consultant.Seniority, r.Consultant.Availability,
             r.Score.Score, r.Score.MatchedSkills, r.Score.MissingSkills, r.Explanation)).ToList();
+    }
+
+    /// <summary>
+    /// The "spice": rank REAL external candidates (GitHub today) for this demand, using the SAME pure
+    /// matching rule and the SAME explanation service. The source is selected by name so LinkedIn or any
+    /// provider could plug in without changing this endpoint.
+    /// </summary>
+    [HttpGet("{id:int}/external-matches")]
+    public async Task<ActionResult<IReadOnlyList<ExternalMatchDto>>> ExternalMatches(
+        int id, [FromQuery] string source = "github", [FromQuery] string? location = null,
+        [FromQuery] int limit = 6, CancellationToken ct = default)
+    {
+        var demand = await _db.Demands.FindAsync(new object?[] { id }, ct);
+        if (demand is null) return NotFound();
+
+        var src = _sources.FirstOrDefault(s => s.Name.Equals(source, StringComparison.OrdinalIgnoreCase));
+        if (src is null) return BadRequest(new { message = $"Unknown candidate source '{source}'." });
+
+        var settings = await _db.MatchingSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        var weights = settings?.ToWeights() ?? MatchingWeights.Default;
+
+        IReadOnlyList<ExternalCandidate> candidates;
+        try
+        {
+            candidates = await src.SearchAsync(demand, new CandidateSearchOptions(location, limit), ct);
+        }
+        catch (CandidateSourceException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
+
+        return candidates
+            .Select(cand =>
+            {
+                var consultant = cand.ToConsultant();
+                var score = _matching.Score(demand, consultant, weights);
+                var explanation = _explanation.Explain(demand, consultant, score);
+                return new ExternalMatchDto(
+                    cand.ExternalId, cand.Name, cand.Headline, cand.ProfileUrl, cand.AvatarUrl,
+                    cand.Location, cand.InferredSeniority, score.Score,
+                    score.MatchedSkills, score.MissingSkills, cand.Skills, explanation, cand.SourceName);
+            })
+            .OrderByDescending(r => r.Score)
+            .ToList();
     }
 }

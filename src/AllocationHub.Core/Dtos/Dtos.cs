@@ -41,6 +41,13 @@ public record MatchDto(
     int ConsultantId, string Name, Seniority Seniority, Availability Availability,
     int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation);
 
+// ---- External sourcing (GitHub) ----
+public record ExternalMatchDto(
+    string ExternalId, string Name, string? Headline, string ProfileUrl, string? AvatarUrl,
+    string? Location, Seniority Seniority, int Score,
+    IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills,
+    IReadOnlyList<string> Skills, string Explanation, string Source);
+
 // ---- Admin: matching settings ----
 public record MatchingSettingsDto(
     int AvailabilityWeight, int SkillWeight, int SeniorityWeight, int AllocatedPenalty,

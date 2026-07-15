@@ -1,10 +1,13 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Serialization;
 using AllocationHub.Core.Abstractions;
 using AllocationHub.Core.Matching;
+using AllocationHub.Core.Sourcing;
 using AllocationHub.Infrastructure.Data;
 using AllocationHub.Infrastructure.Matching;
 using AllocationHub.Infrastructure.Security;
+using AllocationHub.Infrastructure.Sourcing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -31,6 +34,21 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IMatchExplanationService, DeterministicMatchExplanationService>();
 builder.Services.AddScoped<MatchingService>();
 builder.Services.AddScoped<AllocationHub.Infrastructure.Data.AuditWriter>();
+
+// ---- External candidate sourcing: real profiles from the GitHub API ----
+// GitHub requires a User-Agent. A GITHUB_TOKEN is optional but lifts the rate limit 60 -> 5000 req/h.
+builder.Services.AddHttpClient<GitHubCandidateSource>(c =>
+{
+    c.BaseAddress = new Uri("https://api.github.com/");
+    c.Timeout = TimeSpan.FromSeconds(15);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("AllocationHub/1.0");
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+    c.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+    var token = builder.Configuration["GITHUB_TOKEN"] ?? builder.Configuration["GitHub:Token"];
+    if (!string.IsNullOrWhiteSpace(token))
+        c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+});
+builder.Services.AddScoped<ICandidateSource>(sp => sp.GetRequiredService<GitHubCandidateSource>());
 
 // ---- Auth ----
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
