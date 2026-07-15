@@ -1,6 +1,8 @@
-import { Component, Inject, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, Inject, ViewChild, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -15,20 +17,28 @@ import { AVAILABILITIES, Consultant, ConsultantRequest, SENIORITIES } from '../.
 @Component({
   selector: 'app-consultants',
   standalone: true,
-  imports: [MatTableModule, MatButtonModule, MatIconModule, MatChipsModule],
+  imports: [
+    MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule,
+    MatChipsModule, MatFormFieldModule, MatInputModule,
+  ],
   template: `
     <div class="head">
       <h1>Consultants</h1>
       <button mat-flat-button color="primary" (click)="edit()"><mat-icon>add</mat-icon> New</button>
     </div>
-    <table mat-table [dataSource]="rows()" class="mat-elevation-z1 full">
-      <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th>
+    <mat-form-field appearance="outline" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Search name, skill, location…</mat-label>
+      <input matInput (keyup)="applyFilter($event)" #f>
+    </mat-form-field>
+    <table mat-table [dataSource]="ds" matSort class="mat-elevation-z1 full">
+      <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
         <td mat-cell *matCellDef="let c"><b>{{ c.name }}</b><div class="sub">{{ c.location }}</div></td></ng-container>
-      <ng-container matColumnDef="seniority"><th mat-header-cell *matHeaderCellDef>Seniority</th>
+      <ng-container matColumnDef="seniority"><th mat-header-cell *matHeaderCellDef mat-sort-header>Seniority</th>
         <td mat-cell *matCellDef="let c">{{ c.seniority }}</td></ng-container>
-      <ng-container matColumnDef="availability"><th mat-header-cell *matHeaderCellDef>Availability</th>
+      <ng-container matColumnDef="availability"><th mat-header-cell *matHeaderCellDef mat-sort-header>Availability</th>
         <td mat-cell *matCellDef="let c"><span class="pill" [class]="c.availability.toLowerCase()">{{ c.availability }}</span></td></ng-container>
-      <ng-container matColumnDef="rate"><th mat-header-cell *matHeaderCellDef>Rate</th>
+      <ng-container matColumnDef="rate"><th mat-header-cell *matHeaderCellDef mat-sort-header>Rate</th>
         <td mat-cell *matCellDef="let c">\${{ c.hourlyRate }}/h</td></ng-container>
       <ng-container matColumnDef="skills"><th mat-header-cell *matHeaderCellDef>Skills</th>
         <td mat-cell *matCellDef="let c"><mat-chip-set>@for (s of c.skills; track s) { <mat-chip>{{ s }}</mat-chip> }</mat-chip-set></td></ng-container>
@@ -39,28 +49,48 @@ import { AVAILABILITIES, Consultant, ConsultantRequest, SENIORITIES } from '../.
         </td></ng-container>
       <tr mat-header-row *matHeaderRowDef="cols"></tr>
       <tr mat-row *matRowDef="let row; columns: cols;"></tr>
+      <tr class="empty" *matNoDataRow><td [attr.colspan]="cols.length">No consultants match “{{ f.value }}”.</td></tr>
     </table>
+    <mat-paginator [pageSizeOptions]="[5, 10, 25]" pageSize="10" showFirstLastButtons></mat-paginator>
   `,
   styles: [`
-    .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     h1 { margin: 0; } .full { width: 100%; } .sub { color: #888; font-size: .78rem; }
+    .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
     .actions { white-space: nowrap; text-align: right; }
     .pill { padding: 2px 8px; border-radius: 10px; font-size: .78rem; }
     .pill.available { background: #e8f5e9; color: #2e7d32; }
     .pill.allocated { background: #fff3e0; color: #ef6c00; }
     .pill.unavailable { background: #f0f0f0; color: #777; }
+    .empty td { padding: 20px; color: #999; text-align: center; }
     mat-chip { font-size: .75rem !important; }
   `],
 })
-export class ConsultantsComponent {
+export class ConsultantsComponent implements AfterViewInit {
   private api = inject(ApiService);
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
   cols = ['name', 'seniority', 'availability', 'rate', 'skills', 'actions'];
-  rows = signal<Consultant[]>([]);
+  ds = new MatTableDataSource<Consultant>([]);
 
-  constructor() { this.load(); }
-  private load() { this.api.listConsultants().subscribe(r => this.rows.set(r)); }
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  constructor() {
+    // Search across the fields that matter, not the default row-stringify.
+    this.ds.filterPredicate = (c, f) =>
+      `${c.name} ${c.location} ${c.seniority} ${c.availability} ${c.skills.join(' ')}`.toLowerCase().includes(f);
+    this.load();
+  }
+
+  ngAfterViewInit() { this.ds.paginator = this.paginator; this.ds.sort = this.sort; }
+
+  applyFilter(e: Event) {
+    this.ds.filter = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    this.ds.paginator?.firstPage();
+  }
+
+  private load() { this.api.listConsultants().subscribe(r => (this.ds.data = r)); }
 
   edit(c?: Consultant) {
     this.dialog.open(ConsultantDialog, { width: '480px', data: c ?? null }).afterClosed().subscribe(saved => {

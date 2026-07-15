@@ -1,6 +1,8 @@
-import { Component, Inject, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, Inject, ViewChild, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,17 +15,25 @@ import { Client, ClientRequest } from '../../core/models';
 @Component({
   selector: 'app-clients',
   standalone: true,
-  imports: [MatTableModule, MatButtonModule, MatIconModule],
+  imports: [
+    MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule,
+    MatFormFieldModule, MatInputModule,
+  ],
   template: `
     <div class="head">
       <h1>Clients</h1>
       <button mat-flat-button color="primary" (click)="edit()"><mat-icon>add</mat-icon> New</button>
     </div>
-    <table mat-table [dataSource]="rows()" class="mat-elevation-z1 full">
-      <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let c"><b>{{ c.name }}</b></td></ng-container>
-      <ng-container matColumnDef="industry"><th mat-header-cell *matHeaderCellDef>Industry</th><td mat-cell *matCellDef="let c">{{ c.industry }}</td></ng-container>
-      <ng-container matColumnDef="contact"><th mat-header-cell *matHeaderCellDef>Contact</th><td mat-cell *matCellDef="let c">{{ c.contactName }}</td></ng-container>
-      <ng-container matColumnDef="open"><th mat-header-cell *matHeaderCellDef>Open demands</th><td mat-cell *matCellDef="let c">{{ c.openDemands }}</td></ng-container>
+    <mat-form-field appearance="outline" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Search name, industry, contact…</mat-label>
+      <input matInput (keyup)="applyFilter($event)" #f>
+    </mat-form-field>
+    <table mat-table [dataSource]="ds" matSort class="mat-elevation-z1 full">
+      <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let c"><b>{{ c.name }}</b></td></ng-container>
+      <ng-container matColumnDef="industry"><th mat-header-cell *matHeaderCellDef mat-sort-header>Industry</th><td mat-cell *matCellDef="let c">{{ c.industry }}</td></ng-container>
+      <ng-container matColumnDef="contact"><th mat-header-cell *matHeaderCellDef mat-sort-header>Contact</th><td mat-cell *matCellDef="let c">{{ c.contactName }}</td></ng-container>
+      <ng-container matColumnDef="open"><th mat-header-cell *matHeaderCellDef mat-sort-header>Open demands</th><td mat-cell *matCellDef="let c">{{ c.openDemands }}</td></ng-container>
       <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let c" class="actions">
           <button mat-icon-button (click)="edit(c)"><mat-icon>edit</mat-icon></button>
@@ -31,20 +41,39 @@ import { Client, ClientRequest } from '../../core/models';
         </td></ng-container>
       <tr mat-header-row *matHeaderRowDef="cols"></tr>
       <tr mat-row *matRowDef="let row; columns: cols;"></tr>
+      <tr class="empty" *matNoDataRow><td [attr.colspan]="cols.length">No clients match “{{ f.value }}”.</td></tr>
     </table>
+    <mat-paginator [pageSizeOptions]="[5, 10, 25]" pageSize="10" showFirstLastButtons></mat-paginator>
   `,
-  styles: [`.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-            h1 { margin: 0; } .full { width: 100%; } .actions { text-align: right; white-space: nowrap; }`],
+  styles: [`.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+            h1 { margin: 0; } .full { width: 100%; } .actions { text-align: right; white-space: nowrap; }
+            .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
+            .empty td { padding: 20px; color: #999; text-align: center; }`],
 })
-export class ClientsComponent {
+export class ClientsComponent implements AfterViewInit {
   private api = inject(ApiService);
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
   cols = ['name', 'industry', 'contact', 'open', 'actions'];
-  rows = signal<Client[]>([]);
+  ds = new MatTableDataSource<Client>([]);
 
-  constructor() { this.load(); }
-  private load() { this.api.listClients().subscribe(r => this.rows.set(r)); }
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  constructor() {
+    this.ds.filterPredicate = (c, f) =>
+      `${c.name} ${c.industry} ${c.contactName}`.toLowerCase().includes(f);
+    this.load();
+  }
+
+  ngAfterViewInit() { this.ds.paginator = this.paginator; this.ds.sort = this.sort; }
+
+  applyFilter(e: Event) {
+    this.ds.filter = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    this.ds.paginator?.firstPage();
+  }
+
+  private load() { this.api.listClients().subscribe(r => (this.ds.data = r)); }
 
   edit(c?: Client) {
     this.dialog.open(ClientDialog, { width: '420px', data: c ?? null }).afterClosed().subscribe(saved => {

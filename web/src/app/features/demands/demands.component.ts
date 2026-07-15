@@ -1,7 +1,9 @@
-import { Component, Inject, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, Inject, ViewChild, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -16,19 +18,27 @@ import { Client, Demand, DemandRequest, SENIORITIES } from '../../core/models';
 @Component({
   selector: 'app-demands',
   standalone: true,
-  imports: [RouterLink, MatTableModule, MatButtonModule, MatIconModule, MatChipsModule],
+  imports: [
+    RouterLink, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule,
+    MatChipsModule, MatFormFieldModule, MatInputModule,
+  ],
   template: `
     <div class="head">
       <h1>Demands</h1>
       <button mat-flat-button color="primary" (click)="edit()"><mat-icon>add</mat-icon> New</button>
     </div>
-    <table mat-table [dataSource]="rows()" class="mat-elevation-z1 full">
-      <ng-container matColumnDef="title"><th mat-header-cell *matHeaderCellDef>Title</th>
+    <mat-form-field appearance="outline" class="search">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Search title, client, skill…</mat-label>
+      <input matInput (keyup)="applyFilter($event)" #f>
+    </mat-form-field>
+    <table mat-table [dataSource]="ds" matSort class="mat-elevation-z1 full">
+      <ng-container matColumnDef="title"><th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
         <td mat-cell *matCellDef="let d"><b>{{ d.title }}</b><div class="sub">{{ d.clientName }}</div></td></ng-container>
-      <ng-container matColumnDef="seniority"><th mat-header-cell *matHeaderCellDef>Needs</th><td mat-cell *matCellDef="let d">{{ d.requiredSeniority }}</td></ng-container>
+      <ng-container matColumnDef="seniority"><th mat-header-cell *matHeaderCellDef mat-sort-header>Needs</th><td mat-cell *matCellDef="let d">{{ d.requiredSeniority }}</td></ng-container>
       <ng-container matColumnDef="skills"><th mat-header-cell *matHeaderCellDef>Skills</th>
         <td mat-cell *matCellDef="let d"><mat-chip-set>@for (s of d.requiredSkills; track s) { <mat-chip>{{ s }}</mat-chip> }</mat-chip-set></td></ng-container>
-      <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th>
+      <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
         <td mat-cell *matCellDef="let d"><span class="pill" [class]="d.status.toLowerCase()">{{ d.status }}</span></td></ng-container>
       <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
         <td mat-cell *matCellDef="let d" class="actions">
@@ -38,28 +48,47 @@ import { Client, Demand, DemandRequest, SENIORITIES } from '../../core/models';
         </td></ng-container>
       <tr mat-header-row *matHeaderRowDef="cols"></tr>
       <tr mat-row *matRowDef="let row; columns: cols;"></tr>
+      <tr class="empty" *matNoDataRow><td [attr.colspan]="cols.length">No demands match “{{ f.value }}”.</td></tr>
     </table>
+    <mat-paginator [pageSizeOptions]="[5, 10, 25]" pageSize="10" showFirstLastButtons></mat-paginator>
   `,
   styles: [`
-    .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     h1 { margin: 0; } .full { width: 100%; } .sub { color: #888; font-size: .78rem; }
+    .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
     .actions { text-align: right; white-space: nowrap; }
     .pill { padding: 2px 8px; border-radius: 10px; font-size: .78rem; }
     .pill.open { background: #e3f2fd; color: #1565c0; }
     .pill.allocated { background: #fff3e0; color: #ef6c00; }
     .pill.closed { background: #f0f0f0; color: #777; }
+    .empty td { padding: 20px; color: #999; text-align: center; }
     mat-chip { font-size: .75rem !important; }
   `],
 })
-export class DemandsComponent {
+export class DemandsComponent implements AfterViewInit {
   private api = inject(ApiService);
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
   cols = ['title', 'seniority', 'skills', 'status', 'actions'];
-  rows = signal<Demand[]>([]);
+  ds = new MatTableDataSource<Demand>([]);
 
-  constructor() { this.load(); }
-  private load() { this.api.listDemands().subscribe(r => this.rows.set(r)); }
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  constructor() {
+    this.ds.filterPredicate = (d, f) =>
+      `${d.title} ${d.clientName} ${d.requiredSeniority} ${d.status} ${d.requiredSkills.join(' ')}`.toLowerCase().includes(f);
+    this.load();
+  }
+
+  ngAfterViewInit() { this.ds.paginator = this.paginator; this.ds.sort = this.sort; }
+
+  applyFilter(e: Event) {
+    this.ds.filter = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    this.ds.paginator?.firstPage();
+  }
+
+  private load() { this.api.listDemands().subscribe(r => (this.ds.data = r)); }
 
   edit(d?: Demand) {
     this.api.listClients().subscribe(clients => {
