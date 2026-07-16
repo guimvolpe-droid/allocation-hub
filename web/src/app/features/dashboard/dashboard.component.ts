@@ -4,13 +4,14 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApiService } from '../../core/api.service';
 import { DashboardSummary } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, MatCardModule, MatIconModule, MatButtonModule, MatChipsModule],
+  imports: [RouterLink, MatCardModule, MatIconModule, MatButtonModule, MatChipsModule, MatProgressBarModule],
   template: `
     <h1>Dashboard</h1>
     @if (data(); as d) {
@@ -52,7 +53,10 @@ import { DashboardSummary } from '../../core/models';
       </div>
     } @else {
       @if (error()) { <p class="err">API unavailable — is the backend running on :5080?</p> }
-      @else { <p class="muted">Loading…</p> }
+      @else {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p class="muted">Loading dashboard…</p>
+      }
     }
   `,
   styles: [`

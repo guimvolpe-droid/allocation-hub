@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -18,7 +19,7 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
   standalone: true,
   imports: [
     RouterLink, FormsModule, MatCardModule, MatButtonModule, MatIconModule, MatChipsModule,
-    MatProgressBarModule, MatFormFieldModule, MatInputModule, MatSelectModule
+    MatProgressBarModule, MatProgressSpinnerModule, MatFormFieldModule, MatInputModule, MatSelectModule
   ],
   template: `
     <a mat-button routerLink="/demands"><mat-icon>arrow_back</mat-icon> Demands</a>
@@ -43,7 +44,12 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
             @for (p of llmProviders(); track p) { <mat-option [value]="p">{{ p }}</mat-option> }
           </mat-select>
         </mat-form-field>
-        <span class="hint">Switch the LLM live · guarded, falls back to deterministic on failure</span>
+        @if (busy() && provider) {
+          <span class="hint working"><mat-spinner diameter="16" class="btn-spin"></mat-spinner>
+            Rewriting explanations with {{ provider }}…</span>
+        } @else {
+          <span class="hint">Switch the LLM live · guarded, falls back to deterministic on failure</span>
+        }
       </div>
     }
 
@@ -82,11 +88,20 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
         <input matInput [(ngModel)]="location" placeholder="e.g. Brazil" (keyup.enter)="searchGitHub()">
       </mat-form-field>
       <button mat-flat-button class="lv-accent-btn" [disabled]="extBusy()" (click)="searchGitHub()">
-        <mat-icon>travel_explore</mat-icon> Search GitHub
+        @if (extBusy()) {
+          <mat-spinner diameter="18" class="btn-spin"></mat-spinner> Searching GitHub…
+        } @else {
+          <mat-icon>travel_explore</mat-icon> Search GitHub
+        }
       </button>
     </div>
 
-    @if (extBusy()) { <mat-progress-bar mode="indeterminate"></mat-progress-bar> }
+    @if (extBusy()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <p class="loading-note">
+        Querying the GitHub API live — reading profiles and repositories to infer skills. Takes a few seconds.
+      </p>
+    }
     @if (extError(); as e) { <p class="err">{{ e }}</p> }
 
     @for (m of externalMatches(); track m.externalId; let i = $index) {
@@ -112,8 +127,13 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
           @if (imported().has(m.externalId)) {
             <span class="pill-imported"><mat-icon inline>check_circle</mat-icon> Imported</span>
           } @else {
-            <button mat-flat-button class="lv-accent-btn" (click)="importCandidate(m)">
-              <mat-icon>person_add</mat-icon> Import
+            <button mat-flat-button class="lv-accent-btn" [disabled]="importing() === m.externalId"
+                    (click)="importCandidate(m)">
+              @if (importing() === m.externalId) {
+                <mat-spinner diameter="18" class="btn-spin"></mat-spinner> Saving…
+              } @else {
+                <mat-icon>person_add</mat-icon> Import
+              }
             </button>
           }
         </div>
@@ -141,6 +161,10 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .llm-switch { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; }
     .llm-switch .prov { width: 220px; }
     .llm-switch .hint { color: var(--lv-accent-ink); font-size: .82rem; }
+    .llm-switch .hint.working { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+    .btn-spin { display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .btn-spin ::ng-deep circle { stroke: currentColor; }
+    .loading-note { color: var(--lv-accent-ink); font-size: .82rem; margin: 8px 0 4px; }
     .ext-head { margin-top: 30px; border-top: 1px solid #eee; padding-top: 14px; }
     .ext-head .src { color: var(--lv-accent-ink); font-weight: 600; }
     .ext-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
@@ -173,6 +197,7 @@ export class MatchComponent {
   extError = signal<string | null>(null);
   extSearched = signal(false);
   imported = signal<Set<string>>(new Set());
+  importing = signal<string | null>(null); // externalId being saved right now
 
   private id = Number(this.route.snapshot.paramMap.get('id'));
 
@@ -217,13 +242,18 @@ export class MatchComponent {
   }
 
   importCandidate(m: ExternalMatch): void {
+    this.importing.set(m.externalId);
     this.api.importCandidate(m).subscribe({
       next: c => {
         const s = new Set(this.imported()); s.add(m.externalId); this.imported.set(s);
+        this.importing.set(null);
         this.snack.open(`${m.name} imported as consultant #${c.id}.`, 'OK', { duration: 3500 });
         this.load(); // the real dev now shows up in the internal ranking, persisted in the DB
       },
-      error: () => this.snack.open('Could not import candidate.', 'OK', { duration: 3000 }),
+      error: () => {
+        this.importing.set(null);
+        this.snack.open('Could not import candidate.', 'OK', { duration: 3000 });
+      },
     });
   }
 
