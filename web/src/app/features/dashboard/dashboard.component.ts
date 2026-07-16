@@ -25,6 +25,7 @@ import { DashboardSummary } from '../../core/models';
       <div class="cols">
         <mat-card class="panel">
           <h2>Top open demands</h2>
+          <p class="panel-hint">Hardest to staff first: highest seniority required, then most skills.</p>
           @for (dem of d.topOpenDemands; track dem.id) {
             <div class="row">
               <div>
@@ -40,6 +41,7 @@ import { DashboardSummary } from '../../core/models';
 
         <mat-card class="panel">
           <h2>Available now</h2>
+          <p class="panel-hint">Free consultants, most senior first.</p>
           @for (c of d.availableNow; track c.id) {
             <div class="row">
               <div>
@@ -61,7 +63,8 @@ import { DashboardSummary } from '../../core/models';
   `,
   styles: [`
     h1 { margin: 0 0 16px; }
-    h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    h2 { margin: 0 0 2px; font-size: 1.05rem; }
+    .panel-hint { color: #888; font-size: .78rem; margin: 0 0 12px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
     .stat { text-align: center; padding: 18px 8px; }
     .stat .n { font-size: 2.2rem; font-weight: 700; line-height: 1; }
