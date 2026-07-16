@@ -34,16 +34,27 @@
 > Antes de começar: API rodando (`:5080`), front rodando (`:4200`), aba do GitHub aberta no repo,
 > aba do Supabase aberta no Table Editor. Login: `admin@demo.com` / `admin123`.
 
-### Passo 1 — Login (30s)
-**Clique:** abra http://localhost:4200.
-**Diga:** "Autenticação com **JWT** (JSON Web Token — um 'crachá' digital assinado que o servidor emite
-no login e o navegador apresenta a cada chamada; o servidor valida a assinatura sem precisar de sessão).
-Senha guardada com **BCrypt** (algoritmo de hash feito para senhas — lento de propósito, para dificultar
-ataque de força bruta; o banco nunca vê a senha em si)."
-**Se o botão do Google estiver visível:** "Também fiz **OAuth com Google** (protocolo onde você delega o
-login a outro provedor: o Google prova quem o usuário é e me entrega um token; eu valido esse token
-criptograficamente e emito o MEU crachá). E repare: se o Google não estiver configurado, o botão nem
-aparece — degradação graciosa."
+### Passo 1 — Login + OAuth Google (1min)
+**Clique:** abra http://localhost:4200 → **entre com o botão do Google** (é mais impressionante que a senha).
+**Diga:** "Dois caminhos de login. O de senha usa **BCrypt** (algoritmo de hash feito para senhas — lento
+de propósito, para dificultar força bruta; o banco nunca vê a senha). E tem **OAuth com Google**
+(protocolo onde você delega o login a outro provedor: o Google prova quem é o usuário e me entrega um
+token assinado; eu valido esse token e emito o **meu** crachá).
+Em ambos os casos, o que circula depois é o **JWT** (JSON Web Token — um crachá assinado que o navegador
+apresenta a cada chamada; o servidor valida a assinatura sem guardar sessão). **O resto do app não sabe
+como você entrou** — os dois caminhos convergem no mesmo `AuthResponse`."
+
+**Os 3 detalhes do OAuth que valem citar (escolha 1 ou 2):**
+1. *"Não uso **client secret**. O fluxo é ID token validado no backend contra as chaves públicas do
+   Google, com checagem de **audience** (confirmo que o token foi emitido pro MEU app, não pra qualquer
+   um). Menos segredo guardado é menos superfície de ataque."*
+2. *"O botão só aparece se o backend disser que está configurado — tem um `GET /api/auth/config`. Sem
+   Client ID, a tela some o botão e o login por senha continua. Mesma degradação graciosa do multi-LLM."*
+3. *"Tem **allowlist** por e-mail. Sem ela seria **fail-open**: qualquer conta Google do mundo viraria
+   Admin. Foi uma revisão adversarial que eu rodei no próprio código que pegou isso."*
+
+**Se perguntarem da conta criada pelo Google:** *"Ela nasce **sem hash de senha** — e o login por senha
+bloqueia hash vazio antes de chamar o BCrypt. Detalhe fino, mas sem isso vira brecha."*
 
 ### Passo 2 — Dashboard (30s)
 **Diga:** "Visão operacional: quantos consultores, quantos disponíveis, demandas abertas. Reparem no
@@ -78,24 +89,47 @@ Llama 3.1 rodando na Groq, um provedor de nuvem). Três coisas importantes:
 Era exatamente isso que eu queria mostrar." *(Falha vira demonstração. Você não tem como perder.)*
 
 ### Passo 5 — Buscar devs REAIS no GitHub (2min — a pimenta nº 2)
-**Clique:** role até "Source real candidates · GitHub", digite `Brazil`, clique **Search GitHub**.
+**Clique:** role até "Source real candidates · GitHub", digite `São Paulo`, deixe **Results: 10**, clique
+**Search GitHub**. *(Repare no loader: o botão vira "Searching GitHub…" e explica o que está fazendo.)*
 **Diga:** "Isso é dado **real**, ao vivo: a **API oficial do GitHub** (interface pública que o GitHub
 oferece para programas consultarem dados). Busco desenvolvedores pela linguagem exigida na demanda,
-leio os repositórios de cada um, **infiro as skills do que a pessoa realmente mantém** no GitHub, e uma
-heurística determinística estima a senioridade (idade da conta, volume de repositórios, seguidores).
-E o ranking? **É o MESMO motor de match** — o candidato externo entra na mesma régua do interno.
+leio os repositórios de cada um, **infiro as skills do que a pessoa realmente mantém**, e uma heurística
+determinística estima a senioridade (idade da conta, volume de repositórios, seguidores).
 Por que GitHub e não LinkedIn? Porque o LinkedIn **não tem API pública de busca de pessoas** e raspar o
 site deles (scraping) viola os termos de uso — numa fábrica que atende banco, compliance importa. Então
-desenhei uma **interface `ICandidateSource`** (contrato de código: quem quiser ser fonte de candidatos
-precisa saber 'buscar'; de onde vem é detalhe): o GitHub é a primeira fonte; LinkedIn, se um dia houver
-acesso legítimo, pluga sem tocar no motor."
-**Clique nos links:** "São perfis reais — o André Baltieri, por exemplo, referência .NET no Brasil."
+desenhei uma **interface `ICandidateSource`** (contrato de código: quem quiser ser fonte precisa saber
+'buscar'; de onde vem é detalhe): o GitHub é a primeira fonte; LinkedIn, se um dia houver acesso
+legítimo, pluga sem tocar no motor."
+**Clique nos links:** "São perfis reais — André Baltieri, Eduardo Pires, Renato Groffe: referências .NET
+no Brasil."
+
+> **⭐ Se perguntarem "como funciona a régua?" — a resposta que separa você:** *"São **duas** réguas.
+> A de **sourcing** decide quem o GitHub me devolve: mapeio a skill da demanda pra uma linguagem do
+> GitHub — `.NET` não existe lá, então busco `C#` — filtro `type:user` pra excluir organizações,
+> `repos:>5` pra cortar conta fantasma, localização opcional, ordenado por seguidores. A de **ranking**
+> é o **mesmo `MatchingService`** dos consultores internos: o candidato externo é projetado num
+> Consultant transitório e passa pelo mesmo score. **Se eu tivesse duas réguas de pontuação, teria duas
+> verdades.**"*
+
+> **Se comentarem do número de resultados:** *"É configurável porque tem trade-off real: cada candidato
+> custa **2 chamadas extras** — perfil e repositórios, porque infiro skill do que a pessoa publica.
+> 15 candidatos = 31 chamadas. Com token são 5000/h; sem token, 60/h. E o teto de 15 protege também o
+> limite **secundário** do GitHub, o de concorrência — que não aparece na cota e é o que morde quando
+> você paraleliza."*
 
 ### Passo 6 — Importar para o banco AO VIVO (1min — fecha o ciclo)
-**Clique:** botão **Import** num candidato → depois Consultants no menu.
+**Clique:** botão **Import** num candidato → depois **busque de novo** → ele volta marcado
+**"On the bench"** → depois Consultants no menu.
 **Diga:** "Um clique e o dev real virou um consultor **persistido no banco** — e olhem o ranking
-interno: ele já aparece pontuado. O import é **idempotente** (pode clicar duas vezes: a segunda não
+interno: ele já aparece pontuado. Buscando de novo, ele volta **marcado como já na bench**, sem botão de
+import: a busca pergunta ao servidor quem já existe. O import é **idempotente** (clicar duas vezes não
 duplica, devolve o mesmo registro) e **auditado**."
+
+> **A pergunta cascata provável — "como você sabe que é a mesma pessoa?"** (é ouro, prepare):
+> *"Não existe e-mail corporativo de um candidato do GitHub, então derivo uma **identidade sintética**
+> estável do id externo: `github:andrebaltieri` vira `andrebaltieri@github.import`. É isso que torna o
+> import idempotente E permite a busca marcar quem já está na bench. E essa regra mora **no Core, num
+> lugar só** — porque se o import e a busca discordassem do formato, a mesma pessoa entraria duas vezes."*
 **Troque para a aba do Supabase (Table Editor):** "E aqui está a linha dele no **PostgreSQL de
 verdade**, gerenciado pelo Supabase (plataforma que hospeda Postgres na nuvem). Não é arquivo local —
 é banco de produção, conectado pelo **pooler** (intermediário que gerencia um pool de conexões — abrir
@@ -177,6 +211,25 @@ Core  (entidades + regra de match)         ← centro: NÃO depende de NADA
   produto a UM provedor fica refém. Aqui o provedor é **configuração** (`BaseUrl`, `Model`,
   variável de ambiente com a chave) — e dá pra trocar **em runtime**, por requisição.
 
+### 3.3.1 As DUAS réguas do sourcing (memorize esta separação)
+
+Quando alguém perguntar "como você traz as pessoas?", a resposta forte é que **são duas réguas
+distintas** — e a segunda é compartilhada:
+
+| | **Régua de SOURCING** (quem vem) | **Régua de RANKING** (quanto vale) |
+|---|---|---|
+| Onde vive | `GitHubCandidateSource` (Infrastructure) | `MatchingService` (Core) |
+| O que faz | monta a query do GitHub | dá o score |
+| Critérios | `language:C#` (mapeado de `.NET`), `type:user`, `repos:>5`, `location`, ordenado por seguidores | +50 disponível, +10/skill, +20 senioridade, −30 alocado |
+| É compartilhada? | não — é específica da fonte | **SIM — a mesma dos consultores internos** |
+
+**O ponto:** o candidato externo é projetado num `Consultant` transitório (`ToConsultant()`) e passa
+pela **mesma** régua de pontuação. *"Se eu tivesse duas réguas de score, teria duas verdades."*
+
+**De onde saem as skills dele:** das **linguagens dos repositórios não-fork** + tópicos reconhecidos —
+com um mapa de sinônimos, porque o GitHub não tem "linguagem .NET", tem `C#`. E a senioridade sai de
+uma **heurística determinística** (idade da conta, nº de repos, seguidores).
+
 ### 3.4 Segurança (o essencial pra conversar)
 
 - **JWT**: crachá assinado. O servidor emite no login e valida a assinatura a cada chamada.
@@ -186,6 +239,12 @@ Core  (entidades + regra de match)         ← centro: NÃO depende de NADA
   emitido para o MEU app, não para outro qualquer) e então emito o meu próprio crachá. Conta criada
   via Google fica **sem senha** — e o login por senha bloqueia hash vazio (detalhe fino: nunca passar
   hash vazio pro BCrypt).
+  - **Por que NÃO uso client secret:** existem dois fluxos OAuth. O de *authorization code* troca um
+    código por token no servidor — esse precisa de secret. O que usei é o de **ID token**: o Google já
+    entrega o token assinado ao navegador e eu só **valido** no backend (assinatura + audience). Menos
+    segredo para guardar, vazar ou rotacionar.
+  - **Allowlist por e-mail:** sem ela o fluxo seria **fail-open** — qualquer conta Google do mundo
+    viraria Admin.
 - **Segredos**: chave de LLM e senha de banco **só em variável de ambiente** (nunca no código/git).
   O Client ID do Google pode ser público (ele identifica o app; quem protege é a validação do token).
 - **Anti-injection na busca**: a bio do GitHub é sanitizada (removo quebras/backticks, corto tamanho)
@@ -248,6 +307,12 @@ invariantes, testes), a IA gera contra a spec, e eu reviso criticamente cada lin
 A regra de match eu mantive determinística e testada justamente pra IA nunca sentar no que decide.
 E o código passou por revisão adversarial — os fixes estão no histórico de commits."
 
+**"A inferência de skill do GitHub não erra?"** *(erra — e assumir isso é o ponto)*
+→ "Erra pra menos. O Giovanni Bassi é referência .NET e sai com skill vazia, porque os repos recentes
+não-fork dele são Rust e Nix. É deliberado: **não confio no que a pessoa diz, confio no que ela
+publica** — mas é uma limitação real. A evolução seria ponderar por estrelas e histórico, não só a
+linguagem do repo recente."
+
 **"Quanto tempo levou?"**
 → "O MVP num dia de trabalho focado; a v2 (GitHub real, multi-LLM, Docker, CI, Supabase, OAuth) em
 mais um. Spec antes de código e incrementos pequenos com teste verde — é assim que eu ando rápido
@@ -277,6 +342,22 @@ sem quebrar."
 > também. Um qualifier (`type:user`) resolveu. Pequena, mas é o tipo de bug que só aparece quando você
 > testa com dados REAIS — por isso eu não mocko o que dá pra fazer de verdade."
 
+**A do 'já importado' (a melhor de causa raiz — conte essa se der):**
+> "Essa eu achei **usando o próprio produto**: importei um dev e ele continuava aparecendo na busca com
+> botão de import, como se nada tivesse acontecido. O sintoma era visual, mas a causa era de
+> arquitetura: o estado 'já importado' vivia **na memória do componente** — ou seja, virava mentira
+> depois de um reload. A verdade morava no servidor e a tela não perguntava.
+> E consertando, vi o risco maior: a regra da identidade sintética existia **só dentro do import**. Se a
+> busca inventasse a dela, a mesma pessoa entraria duas vezes. Extraí pro Core — uma regra, um lugar. E
+> resolvi o lote numa **query só** (`WHERE Email IN (...)`), porque marcar N candidatos com N consultas
+> seria trocar um bug por um gargalo."
+
+**A do loader (mostra que você pensa em quem usa):**
+> "Cliquei em 'Buscar no GitHub' e não sabia se tinha funcionado. A barra de progresso existia — mas
+> embaixo, fora de onde o olho estava. Movi o feedback pra **dentro do botão** e escrevi o que está
+> acontecendo: 'consultando a API do GitHub, lendo perfis e repositórios'. A busca continua levando os
+> mesmos segundos, mas **espera explicada não é espera ansiosa**. Ferramenta interna também tem usuário."
+
 ---
 
 ## 6. Limitações conhecidas + roadmap (assuma ANTES de perguntarem)
@@ -292,25 +373,30 @@ sem quebrar."
 | `/health` detalhado público | Prova de demo | Detalhe atrás de auth em produção |
 | **Concorrência** de alocação | Fluxo único na demo | Transação + constraint de unicidade ativa |
 | Paginação da API | Volume de demo | Skip/take + total |
+| Inferência de skill só por linguagem de repo recente | Simples e explicável | Ponderar estrelas, histórico e tópicos |
+| Só 1 fonte externa (GitHub) | Prova a abstração `ICandidateSource` | Stack Overflow / LinkedIn (se houver acesso legítimo) |
 
 *(Fala pronta: "é um MVP com cortes CONSCIENTES e documentados — a spec diz o que ficou de fora e
 por quê. Prefiro núcleo sólido e honesto a superfície grande e frágil.")*
 
 ---
 
-## 7. OAuth Google — status e SEU passo (se quiser mostrar ao vivo)
+## 7. OAuth Google — ✅ ATIVO e testado
 
-**Pronto no código:** botão "Sign in with Google" aparece automaticamente quando a API tem o Client ID;
-valida o token com audience; cria o usuário no primeiro login; conta Google fica sem senha (e o login
-por senha bloqueia hash vazio). Sem Client ID → tela fica como sempre (fallback = senha). 
+**Funcionando de verdade:** você logou com `guimvolpe@gmail.com` e o backend criou sua conta no Postgres
+(o `INSERT INTO "Users"` está no log). Configuração ativa no ambiente da demo:
+- `GOOGLE_CLIENT_ID` = o client `allocationhub-web` (origins `localhost:4200` e `localhost:8080`)
+- `GOOGLE_ALLOWED_EMAILS` = `guimvolpe@gmail.com` → **só você entra** pelo Google
 
-**Para ativar (~5min, grátis):**
-1. https://console.cloud.google.com → New Project → nome `allocationhub` → Create.
-2. ☰ → APIs & Services → **OAuth consent screen** → External → nome `AllocationHub` + seu email → Save
-   (se ficar "Testing", adicione seu email em Test users).
-3. APIs & Services → **Credentials** → + Create Credentials → **OAuth client ID** → Web application →
-   origins `http://localhost:4200` e `http://localhost:8080` → Create → copie o Client ID.
-4. Suba a API com `GOOGLE_CLIENT_ID=<seu-client-id>` no ambiente → o botão aparece no login.
+**Prova visual opcional:** Supabase → Table Editor → tabela `Users` → sua conta aparece com
+`PasswordHash` **vazio** (é a conta Google-only).
+
+> **Se der erro na hora** (ex.: "origin is not allowed"): não insista ao vivo. Diga *"o OAuth exige
+> registro de origem no console do Google e propagação; em ambiente real isso já está no deploy"* e
+> **entre com a senha** (`admin@demo.com` / `admin123`). O código continua sendo seu argumento.
+
+⚠️ **Depois da entrevista:** delete a **client secret** (não é usada por nada aqui), **resete a senha do
+banco** no Supabase e **revogue a chave da Groq** e o **token do GitHub** — todos passaram por chat.
 
 ---
 
@@ -332,7 +418,14 @@ por senha bloqueia hash vazio). Sem Client ID → tela fica como sempre (fallbac
 - **Heurística** — regra prática aproximada (ex.: inferir senioridade por idade de conta/repos).
 - **LLM / prompt / alucinação / prompt injection / guardrail / eval / fallback** — ver §3.3.
 - **Rate limit** — teto de chamadas por hora que uma API impõe (GitHub: 60/h sem token, 5000/h com).
+  O GitHub tem também um limite **secundário**, de concorrência, que não aparece na cota.
 - **Idempotente** — repetir a operação não muda o resultado (2º import devolve o mesmo registro).
+- **Identidade sintética** — e-mail derivado do id externo (`github:fulano` → `fulano@github.import`);
+  é o que torna o import idempotente e permite marcar quem já está na bench.
+- **N+1** — clássico de performance: buscar N itens e fazer 1 consulta para cada. Aqui a marcação de
+  "já importado" resolve o lote em **uma** query (`WHERE Email IN (...)`).
+- **Fail-open / fail-closed** — quando algo falha, o sistema **libera** (fail-open, perigoso) ou
+  **bloqueia** (fail-closed, seguro). A allowlist do Google evita o fail-open.
 - **Auditoria** — registro de quem fez o quê e quando.
 - **Docker / imagem / container / multi-stage / compose** — ver §3.5.
 - **nginx / reverse proxy / CORS** — ver §3.5.
@@ -348,10 +441,29 @@ por senha bloqueia hash vazio). Sem Client ID → tela fica como sempre (fallbac
 
 ## 9. Checklist 16:45 (15 min antes)
 
-- [ ] API de pé com Supabase + Groq (aba `http://localhost:5080/api/health` mostrando **PostgreSQL**).
-- [ ] Front de pé (`:4200`), login testado, visual Lyncas conferido.
-- [ ] Abas prontas: app · Swagger · GitHub (repo/Actions) · Supabase Table Editor · este guia.
-- [ ] `GITHUB_TOKEN` setado se for demonstrar a busca mais de ~5 vezes (rate limit 60/h sem token).
-- [ ] Ensaiar 1x o Passo 4 (troca de LLM) e o Passo 6 (import) — são os momentos "uau".
+- [ ] API de pé (`http://localhost:5080/api/health` mostrando **PostgreSQL (Supabase)** e **8 consultores**).
+- [ ] Front de pé (`:4200`), favicon roxo na aba, visual Lyncas conferido.
+- [ ] Abas prontas: **app** · **Swagger** (`:5080/swagger`) · **GitHub** (repo + Actions verde) ·
+      **Supabase Table Editor** · **este guia**.
+- [ ] Ambiente da API tem: `GROQ_API_KEY` · `GITHUB_TOKEN` (5000/h) · `GOOGLE_CLIENT_ID` ·
+      `GOOGLE_ALLOWED_EMAILS` · `SUPABASE_DB_CONNECTION`. *(Se reiniciar a API, tem que subir com TODAS —
+      senão o botão do Google some e a busca cai pra 60/h.)*
+- [ ] Ensaiar 1x: **Passo 4** (troca de LLM) e **Passo 6** (import → buscar de novo → "On the bench").
+- [ ] Banco limpo: 8 consultores semeados, 0 importados (o import ao vivo é a primeira vez).
 - [ ] Respirar: **tudo nesta demo é real e você construiu.** Falha de rede vira demonstração de
       fallback — você não tem como perder.
+
+### Se precisar reiniciar a API na correria
+Peça pro Claude, ou rode com todas as variáveis de ambiente de uma vez (elas estão no seu histórico
+deste chat — nunca em arquivo do repo, por decisão de segurança).
+
+---
+
+## 10. Os 3 fatos que você NÃO pode esquecer
+
+1. **A regra de match é pura, determinística e testada — a IA nunca decide.** Se você só disser uma
+   coisa técnica, diga essa.
+2. **Tudo é real:** devs reais do GitHub, LLM real trocável, Postgres real, OAuth real, CI real.
+   Nenhum mock onde dava pra fazer de verdade.
+3. **Você assume o que falta** (migrations, RBAC, refresh token, testes de integração) e sabe o próximo
+   passo de cada um. Sênior não é quem não tem lacuna — é quem sabe onde elas estão e por quê.
