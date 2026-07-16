@@ -39,7 +39,9 @@ public record AllocationRequest(int DemandId, int ConsultantId, DateOnly StartDa
 // ---- Matching ----
 public record MatchDto(
     int ConsultantId, string Name, Seniority Seniority, Availability Availability,
-    int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation);
+    int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation,
+    // Photo for consultants sourced from GitHub (derived, not stored). Null for regular ones.
+    string? AvatarUrl);
 
 // ---- External sourcing (GitHub) ----
 public record ExternalMatchDto(

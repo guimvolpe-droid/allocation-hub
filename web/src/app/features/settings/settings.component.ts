@@ -56,9 +56,12 @@ const DEFAULTS = { availabilityWeight: 50, skillWeight: 10, seniorityWeight: 20,
   styles: [`
     h1 { margin: 0 0 6px; } .lead { color: #666; max-width: 620px; margin: 0 0 18px; }
     .card { padding: 20px; max-width: 680px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+    /* Row gap has to clear the mat-hint subscript, which wraps to two lines — otherwise the
+       "Last updated" line collides with it. */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px 16px; }
     mat-form-field { width: 100%; }
-    .meta { color: #888; font-size: .82rem; margin: 4px 0 14px; }
+    .meta { color: #888; font-size: .82rem; margin: 10px 0 16px; padding-top: 14px;
+            border-top: 1px solid #eee; }
     .actions { display: flex; justify-content: flex-end; gap: 10px; }
   `],
 })

@@ -39,6 +39,7 @@ export interface Allocation {
 export interface Match {
   consultantId: number; name: string; seniority: Seniority; availability: Availability;
   score: number; matchedSkills: string[]; missingSkills: string[]; explanation: string;
+  avatarUrl: string | null;
 }
 
 export interface LlmProviders { available: boolean; defaultProvider: string; providers: string[]; }

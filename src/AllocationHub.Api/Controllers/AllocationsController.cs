@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AllocationHub.Api.Mapping;
 using AllocationHub.Core.Domain;
 using AllocationHub.Core.Dtos;
@@ -14,7 +15,12 @@ namespace AllocationHub.Api.Controllers;
 public class AllocationsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public AllocationsController(AppDbContext db) => _db = db;
+    private readonly AuditWriter _audit;
+
+    public AllocationsController(AppDbContext db, AuditWriter audit) { _db = db; _audit = audit; }
+
+    private string Actor =>
+        User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.Email) ?? "admin";
 
     [HttpGet]
     public async Task<ActionResult<List<AllocationDto>>> List() =>
@@ -47,6 +53,11 @@ public class AllocationsController : ControllerBase
 
         await _db.Entry(alloc).Reference(a => a.Demand).LoadAsync();
         await _db.Entry(alloc).Reference(a => a.Consultant).LoadAsync();
+
+        // Allocating is the money decision of this system — it must leave a trail.
+        await _audit.RecordAsync(Actor, "Allocate", "Allocation",
+            $"{consultant.Name} -> \"{demand.Title}\" (consultantId={consultant.Id}, demandId={demand.Id}, start={alloc.StartDate:yyyy-MM-dd})");
+
         return CreatedAtAction(nameof(List), alloc.ToDto());
     }
 
@@ -64,6 +75,10 @@ public class AllocationsController : ControllerBase
         if (alloc.Consultant is not null) alloc.Consultant.Availability = Availability.Available;
         if (alloc.Demand is not null) alloc.Demand.Status = DemandStatus.Open;
         await _db.SaveChangesAsync();
+
+        await _audit.RecordAsync(Actor, "End allocation", "Allocation",
+            $"{alloc.Consultant?.Name} freed from \"{alloc.Demand?.Title}\" (allocationId={alloc.Id}, end={alloc.EndDate:yyyy-MM-dd})");
+
         return alloc.ToDto();
     }
 }

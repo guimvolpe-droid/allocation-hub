@@ -105,7 +105,8 @@ public class DemandsController : ControllerBase
 
         return ranked.Select((r, i) => new MatchDto(
             r.Consultant.Id, r.Consultant.Name, r.Consultant.Seniority, r.Consultant.Availability,
-            r.Score.Score, r.Score.MatchedSkills, r.Score.MissingSkills, explanations[i])).ToList();
+            r.Score.Score, r.Score.MatchedSkills, r.Score.MissingSkills, explanations[i],
+            ExternalIdentity.AvatarUrlFor(r.Consultant.Email))).ToList();
     }
 
     /// <summary>

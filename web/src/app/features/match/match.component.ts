@@ -58,6 +58,11 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     @for (m of matches(); track m.consultantId; let i = $index) {
       <mat-card class="match" [class.top]="i === 0">
         <div class="score" [class.good]="m.score >= 70" [class.mid]="m.score >= 40 && m.score < 70">{{ m.score }}</div>
+        @if (m.avatarUrl) {
+          <img class="avatar" [src]="m.avatarUrl" [alt]="m.name">
+        } @else {
+          <div class="avatar initials">{{ initials(m.name) }}</div>
+        }
         <div class="body">
           <div class="who">{{ m.name }} <span class="tag">{{ m.seniority }} · {{ m.availability }}</span></div>
           <div class="skills">
@@ -155,13 +160,17 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .head { margin: 12px 0 20px; padding: 16px; }
     .head h1 { margin: 0 0 4px; } .sub { color: #666; margin: 0 0 10px; }
     h2 { margin: 8px 0 2px; } .explain { color: #777; margin: 0 0 14px; font-size: .88rem; max-width: 620px; }
-    .match { display: flex; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 10px; }
+    /* mat-card ships flex-direction: column — without this the whole row stacks vertically. */
+    .match { display: flex; flex-direction: row; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 10px; }
     .match.top { outline: 2px solid var(--lv-primary); }
     .score { font-size: 1.7rem; font-weight: 700; width: 56px; text-align: center; color: var(--lv-err); }
     .score.mid { color: var(--lv-warn); } .score.good { color: var(--lv-ok); }
-    .avatar { width: 44px; height: 44px; border-radius: 50%; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto; object-fit: cover; }
+    .avatar.initials { display: flex; align-items: center; justify-content: center;
+      background: var(--lv-primary-tint); color: var(--lv-primary-dark); font-weight: 700; font-size: .85rem; }
     .body { flex: 1 1 auto; }
-    .who { font-weight: 600; } .who a { color: var(--lv-primary); text-decoration: none; } .who a:hover { text-decoration: underline; }
+    .who { font-weight: 600; display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+    .who a { color: var(--lv-primary); text-decoration: none; } .who a:hover { text-decoration: underline; }
     .tag { color: #888; font-weight: 400; font-size: .85rem; }
     .headline { color: #666; font-size: .85rem; margin: 2px 0; }
     .skills { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -184,7 +193,7 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .match.ext { background: var(--lv-primary-wash); }
     .match.ext.known { opacity: .72; }
     .known-tag { color: var(--lv-accent-ink); font-weight: 600; }
-    .ext-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .ext-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; flex: 0 0 auto; }
     .pill-imported { display: inline-flex; align-items: center; gap: 4px; background: var(--lv-accent-tint);
       color: var(--lv-accent-ink); font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; justify-content: center; }
   `],
@@ -223,6 +232,15 @@ export class MatchComponent {
       this.llmAvailable.set(p.available);
     });
     this.load();
+  }
+
+  /** Fallback avatar for consultants without a photo: first + last initials. */
+  initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    const first = parts[0][0] ?? '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
   }
 
   onProviderChange(): void {

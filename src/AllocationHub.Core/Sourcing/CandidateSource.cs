@@ -48,11 +48,26 @@ public record CandidateSearchOptions(string? Location = null, int Limit = 6);
 /// </summary>
 public static class ExternalIdentity
 {
+    private const string GitHubSuffix = "@github.import";
+
     public static string SyntheticEmail(string externalId)
     {
         var sep = externalId.IndexOf(':');
         var login = sep >= 0 ? externalId[(sep + 1)..] : externalId;
-        return $"{login}@github.import".ToLowerInvariant();
+        return $"{login}{GitHubSuffix}".ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Avatar for a consultant that came from GitHub, or null for a regular one. GitHub serves every
+    /// user's picture at github.com/{login}.png, and the login is already encoded in the synthetic
+    /// email — so the photo needs no extra column and no extra API call.
+    /// </summary>
+    public static string? AvatarUrlFor(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !email.EndsWith(GitHubSuffix, StringComparison.OrdinalIgnoreCase))
+            return null;
+        var login = email[..^GitHubSuffix.Length];
+        return string.IsNullOrWhiteSpace(login) ? null : $"https://github.com/{login}.png";
     }
 }
 
