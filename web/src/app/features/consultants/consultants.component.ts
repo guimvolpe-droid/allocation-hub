@@ -134,6 +134,7 @@ export class ConsultantsComponent implements AfterViewInit {
 export class ConsultantDialog {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
+  private snack = inject(MatSnackBar);
   private ref = inject(MatDialogRef<ConsultantDialog>);
   data = inject<Consultant | null>(MAT_DIALOG_DATA);
   seniorities = SENIORITIES; availabilities = AVAILABILITIES;
@@ -156,6 +157,10 @@ export class ConsultantDialog {
       skills: v.skills.split(',').map(s => s.trim()).filter(Boolean),
     };
     const obs = this.data ? this.api.updateConsultant(this.data.id, req) : this.api.createConsultant(req);
-    obs.subscribe(() => this.ref.close(true));
+    obs.subscribe({
+      next: () => this.ref.close(true),
+      // Fail loud: a dead Save button is the worst possible failure in a live demo.
+      error: () => this.snack.open('Could not save consultant.', 'OK', { duration: 3000 }),
+    });
   }
 }

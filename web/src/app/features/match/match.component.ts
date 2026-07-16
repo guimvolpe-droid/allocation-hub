@@ -186,8 +186,9 @@ export class MatchComponent {
   }
 
   onProviderChange(): void {
+    // Re-explain the internal ranking only. Deliberately NOT re-running the GitHub search here:
+    // each search costs ~13 API calls and would silently burn the rate-limit budget on a dropdown flip.
     this.load();
-    if (this.extSearched()) this.searchGitHub();
   }
 
   private load(): void {

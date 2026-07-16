@@ -62,7 +62,7 @@ public class GitHubCandidateSource : ICandidateSource
         // type:user excludes organizations — we're sourcing people, not company accounts.
         var q = $"language:{language} type:user repos:>5";
         if (!string.IsNullOrWhiteSpace(options.Location))
-            q += $" location:{options.Location.Trim()}";
+            q += $" location:\"{options.Location.Trim().Replace("\"", "")}\""; // quoted: "São Paulo" etc.
 
         var searchUrl = $"search/users?q={Uri.EscapeDataString(q)}&sort=followers&order=desc&per_page={limit}";
 

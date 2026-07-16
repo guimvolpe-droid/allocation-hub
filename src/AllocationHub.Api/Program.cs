@@ -37,7 +37,10 @@ var dbConnection = !string.IsNullOrWhiteSpace(supabaseConn)
 
 builder.Services.AddDbContext<AppDbContext>(o =>
 {
-    if (usePostgres) o.UseNpgsql(dbConnection);
+    // Retry on transient failures: a pooled connection the Supabase pooler dropped while the app sat
+    // idle would otherwise surface as one ugly 500 on the next request. No transactions are used, so
+    // the retrying execution strategy is safe.
+    if (usePostgres) o.UseNpgsql(dbConnection, npg => npg.EnableRetryOnFailure());
     else o.UseSqlite(dbConnection);
 });
 

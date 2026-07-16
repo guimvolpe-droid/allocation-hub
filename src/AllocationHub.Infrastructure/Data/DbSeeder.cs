@@ -108,10 +108,14 @@ public static class DbSeeder
         if (!await OurSchemaExistsAsync(db)) await creator.CreateTablesAsync();
     }
 
-    /// <summary>Cheapest provider-agnostic probe for "is our schema here?": touch our own table.</summary>
+    /// <summary>
+    /// Cheapest provider-agnostic probe for "is our schema here?": touch our own table — and probe the
+    /// NEWEST one (MatchingSettings), so a database created by an older build of the schema doesn't
+    /// pass the check while still missing recently added tables.
+    /// </summary>
     private static async Task<bool> OurSchemaExistsAsync(AppDbContext db)
     {
-        try { await db.Users.AnyAsync(); return true; }
+        try { await db.MatchingSettings.AnyAsync(); return true; }
         catch { return false; } // table/relation not there yet
     }
 }
