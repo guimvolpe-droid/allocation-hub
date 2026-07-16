@@ -52,6 +52,8 @@ public class GitHubCandidateSource : ICandidateSource
     public async Task<IReadOnlyList<ExternalCandidate>> SearchAsync(
         Demand demand, CandidateSearchOptions options, CancellationToken ct = default)
     {
+        // Ceiling protects the rate limit AND GitHub's secondary (concurrency) limits: each candidate
+        // costs 2 extra calls (profile + repos), all issued in parallel below.
         var limit = Math.Clamp(options.Limit, 1, 15);
 
         // Pick the most distinctive required skill that maps to a GitHub language; default to C#.

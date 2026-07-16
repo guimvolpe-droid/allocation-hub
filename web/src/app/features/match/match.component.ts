@@ -87,6 +87,14 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
         <mat-label>Location (optional)</mat-label>
         <input matInput [(ngModel)]="location" placeholder="e.g. Brazil" (keyup.enter)="searchGitHub()">
       </mat-form-field>
+      <mat-form-field appearance="outline" class="lim">
+        <mat-label>Results</mat-label>
+        <mat-select [(value)]="limit">
+          <mat-option [value]="6">6 candidates</mat-option>
+          <mat-option [value]="10">10 candidates</mat-option>
+          <mat-option [value]="15">15 candidates</mat-option>
+        </mat-select>
+      </mat-form-field>
       <button mat-flat-button class="lv-accent-btn" [disabled]="extBusy()" (click)="searchGitHub()">
         @if (extBusy()) {
           <mat-spinner diameter="18" class="btn-spin"></mat-spinner> Searching GitHub…
@@ -169,6 +177,7 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .ext-head .src { color: var(--lv-accent-ink); font-weight: 600; }
     .ext-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
     .ext-controls .loc { width: 220px; }
+    .ext-controls .lim { width: 160px; }
     .match.ext { background: var(--lv-primary-wash); }
     .ext-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
     .pill-imported { display: inline-flex; align-items: center; gap: 4px; background: var(--lv-accent-tint);
@@ -192,6 +201,7 @@ export class MatchComponent {
 
   // External (GitHub) sourcing state
   location = '';
+  limit = 10; // each candidate costs 2 extra GitHub calls; the API clamps this at 15
   externalMatches = signal<ExternalMatch[]>([]);
   extBusy = signal(false);
   extError = signal<string | null>(null);
@@ -231,7 +241,7 @@ export class MatchComponent {
     this.extBusy.set(true);
     this.extError.set(null);
     this.extSearched.set(true);
-    this.api.externalMatches(this.id, 'github', this.location.trim() || undefined, 6, this.provider || undefined).subscribe({
+    this.api.externalMatches(this.id, 'github', this.location.trim() || undefined, this.limit, this.provider || undefined).subscribe({
       next: m => { this.externalMatches.set(m); this.extBusy.set(false); },
       error: err => {
         this.externalMatches.set([]);
