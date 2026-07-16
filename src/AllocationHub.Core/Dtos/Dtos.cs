@@ -46,7 +46,9 @@ public record ExternalMatchDto(
     string ExternalId, string Name, string? Headline, string ProfileUrl, string? AvatarUrl,
     string? Location, Seniority Seniority, int Score,
     IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills,
-    IReadOnlyList<string> Skills, string Explanation, string Source);
+    IReadOnlyList<string> Skills, string Explanation, string Source,
+    // Already on the bench? Server-side truth, so it survives a page reload.
+    bool AlreadyImported, int? ConsultantId);
 
 // ---- Admin: matching settings ----
 public record MatchingSettingsDto(

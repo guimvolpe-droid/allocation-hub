@@ -161,13 +161,25 @@ public class DemandsController : ControllerBase
             return (cand, consultant, score, baseline);
         }).ToList();
 
+        // Which of these are already on the bench? One query for the whole batch (never N+1), keyed by the
+        // same synthetic email the import uses — so the UI can say "already imported" after a reload.
+        var emails = scored.Select(x => ExternalIdentity.SyntheticEmail(x.cand.ExternalId)).ToList();
+        var onBench = await _db.Consultants.AsNoTracking()
+            .Where(c => emails.Contains(c.Email))
+            .ToDictionaryAsync(c => c.Email, c => c.Id, ct);
+
         var explanations = await EnrichAsync(
             demand, scored.Select(x => (x.consultant, x.score, x.baseline)), provider, ct);
 
-        return scored.Select((x, i) => new ExternalMatchDto(
-                x.cand.ExternalId, x.cand.Name, x.cand.Headline, x.cand.ProfileUrl, x.cand.AvatarUrl,
-                x.cand.Location, x.cand.InferredSeniority, x.score.Score,
-                x.score.MatchedSkills, x.score.MissingSkills, x.cand.Skills, explanations[i], x.cand.SourceName))
+        return scored.Select((x, i) =>
+            {
+                var known = onBench.TryGetValue(ExternalIdentity.SyntheticEmail(x.cand.ExternalId), out var cid);
+                return new ExternalMatchDto(
+                    x.cand.ExternalId, x.cand.Name, x.cand.Headline, x.cand.ProfileUrl, x.cand.AvatarUrl,
+                    x.cand.Location, x.cand.InferredSeniority, x.score.Score,
+                    x.score.MatchedSkills, x.score.MissingSkills, x.cand.Skills, explanations[i],
+                    x.cand.SourceName, known, known ? cid : null);
+            })
             .OrderByDescending(r => r.Score)
             .ToList();
     }

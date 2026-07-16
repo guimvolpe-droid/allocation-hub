@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AllocationHub.Api.Mapping;
 using AllocationHub.Core.Domain;
 using AllocationHub.Core.Dtos;
+using AllocationHub.Core.Sourcing;
 using AllocationHub.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -59,10 +60,9 @@ public class ConsultantsController : ControllerBase
     [HttpPost("import")]
     public async Task<ActionResult<ConsultantDto>> Import(ImportConsultantRequest req)
     {
-        // Synthetic email derived from the external login makes the import idempotent.
-        var sep = req.ExternalId.IndexOf(':');
-        var login = sep >= 0 ? req.ExternalId[(sep + 1)..] : req.ExternalId;
-        var email = $"{login}@github.import".ToLowerInvariant();
+        // Synthetic email derived from the external login makes the import idempotent (same rule the
+        // external search uses to flag who is already on the bench).
+        var email = ExternalIdentity.SyntheticEmail(req.ExternalId);
 
         var existing = await _db.Consultants.FirstOrDefaultAsync(c => c.Email == email);
         if (existing is not null) return existing.ToDto();

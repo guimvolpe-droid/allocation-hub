@@ -47,6 +47,7 @@ export interface ExternalMatch {
   externalId: string; name: string; headline: string | null; profileUrl: string; avatarUrl: string | null;
   location: string | null; seniority: Seniority; score: number;
   matchedSkills: string[]; missingSkills: string[]; skills: string[]; explanation: string; source: string;
+  alreadyImported: boolean; consultantId: number | null;
 }
 
 export interface MatchingSettings {

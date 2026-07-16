@@ -40,6 +40,23 @@ public record ExternalCandidate(
 public record CandidateSearchOptions(string? Location = null, int Limit = 6);
 
 /// <summary>
+/// The identity rule for externally sourced people. An external candidate has no corporate email, so we
+/// derive a stable synthetic one from the external id ("github:octocat" -> "octocat@github.import").
+/// It is what makes importing idempotent AND what lets a search tell which candidates are already on the
+/// bench. It lives here — one rule, one place: if the import and the search disagreed on this, the same
+/// person would be imported twice.
+/// </summary>
+public static class ExternalIdentity
+{
+    public static string SyntheticEmail(string externalId)
+    {
+        var sep = externalId.IndexOf(':');
+        var login = sep >= 0 ? externalId[(sep + 1)..] : externalId;
+        return $"{login}@github.import".ToLowerInvariant();
+    }
+}
+
+/// <summary>
 /// A source of candidate profiles. Implementations live in Infrastructure (they talk to the network);
 /// the contract lives here in Core so the API and the matching rule depend only on the abstraction.
 /// </summary>

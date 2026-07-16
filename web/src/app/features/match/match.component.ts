@@ -113,13 +113,16 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     @if (extError(); as e) { <p class="err">{{ e }}</p> }
 
     @for (m of externalMatches(); track m.externalId; let i = $index) {
-      <mat-card class="match ext" [class.top]="i === 0">
+      <mat-card class="match ext" [class.top]="i === 0" [class.known]="m.alreadyImported">
         <div class="score" [class.good]="m.score >= 70" [class.mid]="m.score >= 40 && m.score < 70">{{ m.score }}</div>
         @if (m.avatarUrl) { <img class="avatar" [src]="m.avatarUrl" alt=""> }
         <div class="body">
           <div class="who">
             <a [href]="m.profileUrl" target="_blank" rel="noopener">{{ m.name }}</a>
             <span class="tag">{{ m.seniority }} · {{ m.source }}</span>
+            @if (m.alreadyImported) {
+              <span class="tag known-tag">· already a consultant (ranked above)</span>
+            }
           </div>
           @if (m.headline) { <div class="headline">{{ m.headline }}</div> }
           <div class="skills">
@@ -132,8 +135,8 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
           <a mat-stroked-button [href]="m.profileUrl" target="_blank" rel="noopener">
             <mat-icon>open_in_new</mat-icon> GitHub
           </a>
-          @if (imported().has(m.externalId)) {
-            <span class="pill-imported"><mat-icon inline>check_circle</mat-icon> Imported</span>
+          @if (m.alreadyImported || imported().has(m.externalId)) {
+            <span class="pill-imported"><mat-icon inline>check_circle</mat-icon> On the bench</span>
           } @else {
             <button mat-flat-button class="lv-accent-btn" [disabled]="importing() === m.externalId"
                     (click)="importCandidate(m)">
@@ -179,6 +182,8 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .ext-controls .loc { width: 220px; }
     .ext-controls .lim { width: 160px; }
     .match.ext { background: var(--lv-primary-wash); }
+    .match.ext.known { opacity: .72; }
+    .known-tag { color: var(--lv-accent-ink); font-weight: 600; }
     .ext-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
     .pill-imported { display: inline-flex; align-items: center; gap: 4px; background: var(--lv-accent-tint);
       color: var(--lv-accent-ink); font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; justify-content: center; }
