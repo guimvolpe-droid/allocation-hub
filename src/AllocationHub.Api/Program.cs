@@ -24,9 +24,22 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_URLS"]))
 builder.Services.AddControllers().AddJsonOptions(o =>
     o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// ---- Persistence (EF Core + SQLite) ----
+// ---- Persistence (EF Core) ----
+// The database is a CONFIGURATION detail, not a code one: Core has no idea which engine is behind EF,
+// so switching SQLite <-> PostgreSQL (Supabase) is one line here and zero lines in the domain.
+// Set SUPABASE_DB_CONNECTION (env) — or Database:Provider=postgres + ConnectionStrings:Default — for Postgres.
+var supabaseConn = builder.Configuration["SUPABASE_DB_CONNECTION"];
+var usePostgres = !string.IsNullOrWhiteSpace(supabaseConn)
+    || string.Equals(builder.Configuration["Database:Provider"], "postgres", StringComparison.OrdinalIgnoreCase);
+var dbConnection = !string.IsNullOrWhiteSpace(supabaseConn)
+    ? supabaseConn
+    : builder.Configuration.GetConnectionString("Default");
+
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Default")));
+{
+    if (usePostgres) o.UseNpgsql(dbConnection);
+    else o.UseSqlite(dbConnection);
+});
 
 // ---- Domain / application services ----
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
@@ -110,7 +123,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    var log = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    log.LogInformation("Database provider: {Provider}", usePostgres ? "PostgreSQL (Supabase)" : "SQLite (local file)");
     await DbSeeder.SeedAsync(db, hasher);
+    log.LogInformation("Database ready — {Consultants} consultants, {Demands} demands seeded/present.",
+        db.Consultants.Count(), db.Demands.Count());
 }
 
 app.UseSwagger();

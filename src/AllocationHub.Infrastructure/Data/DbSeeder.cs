@@ -1,11 +1,13 @@
 using AllocationHub.Core.Abstractions;
 using AllocationHub.Core.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AllocationHub.Infrastructure.Data;
 
 /// <summary>
-/// Creates the database and seeds demo data on startup if empty. The data is intentionally realistic
+/// Creates the schema and seeds demo data on startup if empty. The data is intentionally realistic
 /// (fintech / healthcare / logistics clients; skills that look like a real bench) so the demo tells a
 /// story: opening the ".NET integration" demand surfaces the strongest available senior at the top.
 /// </summary>
@@ -13,7 +15,7 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext db, IPasswordHasher hasher)
     {
-        await db.Database.EnsureCreatedAsync();
+        await EnsureSchemaAsync(db);
         if (await db.Users.AnyAsync()) return; // already seeded
 
         db.Users.Add(new User
@@ -83,5 +85,33 @@ public static class DbSeeder
             new Allocation { Demand = d4, Consultant = consultants[3], StartDate = today.AddDays(-45), Status = AllocationStatus.Active });
 
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Creates our schema when it's missing, on whichever engine we're pointed at.
+    /// <para>
+    /// Two traps this avoids, both found by actually running against Supabase:
+    /// (1) <c>EnsureCreated()</c> only checks whether the *database* exists. SQLite had no file, so it
+    /// created everything; managed Postgres hands you an existing "postgres" database, so it silently
+    /// no-ops and the tables are never created.
+    /// (2) <c>HasTables()</c> is true on Supabase even for a brand-new project, because the database
+    /// already ships Supabase's own schemas (auth, storage, ...). So we probe OUR table instead — the
+    /// only question that actually matters here.
+    /// </para>
+    /// A production system would use EF migrations; this stays inside the MVP's documented "no
+    /// migrations" scope while working identically on both providers.
+    /// </summary>
+    private static async Task EnsureSchemaAsync(AppDbContext db)
+    {
+        var creator = db.GetService<IRelationalDatabaseCreator>();
+        if (!await creator.ExistsAsync()) await creator.CreateAsync(); // SQLite: create the file
+        if (!await OurSchemaExistsAsync(db)) await creator.CreateTablesAsync();
+    }
+
+    /// <summary>Cheapest provider-agnostic probe for "is our schema here?": touch our own table.</summary>
+    private static async Task<bool> OurSchemaExistsAsync(AppDbContext db)
+    {
+        try { await db.Users.AnyAsync(); return true; }
+        catch { return false; } // table/relation not there yet
     }
 }
