@@ -8,6 +8,9 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Default=Data Source=/app/data/allocationhub.db
+      # When set in ./.env, the API talks to Supabase Postgres instead of the SQLite volume —
+      # the exact same provider switch the local run uses (see Program.cs).
+      - SUPABASE_DB_CONNECTION=${SUPABASE_DB_CONNECTION:-}
       # Optional — set these in ./.env to enable the live LLM switch and lift the GitHub rate limit.
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}

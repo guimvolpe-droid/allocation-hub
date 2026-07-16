@@ -54,6 +54,14 @@ export class ApiService {
     return this.http.get<ExternalMatch[]>(`${API_URL}/demands/${id}/external-matches`, { params });
   }
 
+  // Turn a sourced external candidate into a persisted consultant (idempotent server-side).
+  importCandidate(m: ExternalMatch): Observable<Consultant> {
+    return this.http.post<Consultant>(`${API_URL}/consultants/import`, {
+      externalId: m.externalId, name: m.name, seniority: m.seniority,
+      location: m.location, skills: m.skills, profileUrl: m.profileUrl, source: m.source,
+    });
+  }
+
   // LLM providers currently usable (for the live provider switch).
   llmProviders() { return this.http.get<LlmProviders>(`${API_URL}/llm/providers`); }
 

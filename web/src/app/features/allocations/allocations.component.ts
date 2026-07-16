@@ -45,7 +45,7 @@ import { Allocation } from '../../core/models';
     h1 { margin: 0 0 12px; } .full { width: 100%; } .actions { text-align: right; }
     .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
     .pill { padding: 2px 8px; border-radius: 10px; font-size: .78rem; }
-    .pill.active { background: #e8f5e9; color: #2e7d32; } .pill.ended { background: #f0f0f0; color: #777; }
+    .pill.active { background: var(--lv-ok-tint); color: var(--lv-ok); } .pill.ended { background: #f0f0f0; color: #777; }
     .empty td { padding: 20px; color: #999; text-align: center; }
   `],
 })

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AllocationHub.Api.Mapping;
 using AllocationHub.Core.Domain;
 using AllocationHub.Core.Dtos;
@@ -8,13 +9,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllocationHub.Api.Controllers;
 
+/// <summary>Payload for importing an externally sourced candidate (e.g. GitHub) as a consultant.</summary>
+public record ImportConsultantRequest(
+    string ExternalId, string Name, Seniority Seniority, string? Location,
+    List<string> Skills, string? ProfileUrl, string Source);
+
 [ApiController]
 [Authorize]
 [Route("api/consultants")]
 public class ConsultantsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public ConsultantsController(AppDbContext db) => _db = db;
+    private readonly AuditWriter _audit;
+
+    public ConsultantsController(AppDbContext db, AuditWriter audit) { _db = db; _audit = audit; }
 
     [HttpGet]
     public async Task<ActionResult<List<ConsultantDto>>> List(
@@ -45,6 +53,37 @@ public class ConsultantsController : ControllerBase
         req.Apply(c);
         _db.Consultants.Add(c);
         await _db.SaveChangesAsync();
+        return CreatedAtAction(nameof(Get), new { id = c.Id }, c.ToDto());
+    }
+
+    [HttpPost("import")]
+    public async Task<ActionResult<ConsultantDto>> Import(ImportConsultantRequest req)
+    {
+        // Synthetic email derived from the external login makes the import idempotent.
+        var sep = req.ExternalId.IndexOf(':');
+        var login = sep >= 0 ? req.ExternalId[(sep + 1)..] : req.ExternalId;
+        var email = $"{login}@github.import".ToLowerInvariant();
+
+        var existing = await _db.Consultants.FirstOrDefaultAsync(c => c.Email == email);
+        if (existing is not null) return existing.ToDto();
+
+        var c = new Consultant
+        {
+            Name = req.Name,
+            Email = email,
+            Seniority = req.Seniority,
+            Location = req.Location ?? string.Empty,
+            Availability = Availability.Available,
+            HourlyRate = 0,
+            Skills = req.Skills ?? new(),
+        };
+        _db.Consultants.Add(c);
+        await _db.SaveChangesAsync();
+
+        var actor = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.Email) ?? "admin";
+        await _audit.RecordAsync(actor, "Import", "Consultant",
+            $"externalId={req.ExternalId}, source={req.Source}, profile={req.ProfileUrl}, email={email}");
+
         return CreatedAtAction(nameof(Get), new { id = c.Id }, c.ToDto());
     }
 

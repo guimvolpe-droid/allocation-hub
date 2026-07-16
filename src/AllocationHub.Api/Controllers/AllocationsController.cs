@@ -36,7 +36,9 @@ public class AllocationsController : ControllerBase
         var alloc = new Allocation
         {
             DemandId = demand.Id, ConsultantId = consultant.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.Date), Status = AllocationStatus.Active
+            // Honor the requested start date (the contract sends it); default to today if unset.
+            StartDate = req.StartDate == default ? DateOnly.FromDateTime(DateTime.UtcNow.Date) : req.StartDate,
+            Status = AllocationStatus.Active
         };
         _db.Allocations.Add(alloc);
         consultant.Availability = Availability.Allocated;

@@ -58,8 +58,8 @@ import { Client, Demand, DemandRequest, SENIORITIES } from '../../core/models';
     .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
     .actions { text-align: right; white-space: nowrap; }
     .pill { padding: 2px 8px; border-radius: 10px; font-size: .78rem; }
-    .pill.open { background: #e3f2fd; color: #1565c0; }
-    .pill.allocated { background: #fff3e0; color: #ef6c00; }
+    .pill.open { background: var(--lv-primary-tint); color: var(--lv-primary); }
+    .pill.allocated { background: var(--lv-warn-tint); color: var(--lv-warn); }
     .pill.closed { background: #f0f0f0; color: #777; }
     .empty td { padding: 20px; color: #999; text-align: center; }
     mat-chip { font-size: .75rem !important; }

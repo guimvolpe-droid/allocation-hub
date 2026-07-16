@@ -50,7 +50,10 @@ import { DashboardSummary } from '../../core/models';
           } @empty { <p class="muted">Nobody available.</p> }
         </mat-card>
       </div>
-    } @else { <p class="muted">Loading…</p> }
+    } @else {
+      @if (error()) { <p class="err">API unavailable — is the backend running on :5080?</p> }
+      @else { <p class="muted">Loading…</p> }
+    }
   `,
   styles: [`
     h1 { margin: 0 0 16px; }
@@ -59,19 +62,26 @@ import { DashboardSummary } from '../../core/models';
     .stat { text-align: center; padding: 18px 8px; }
     .stat .n { font-size: 2.2rem; font-weight: 700; line-height: 1; }
     .stat .l { color: #666; font-size: .85rem; margin-top: 4px; }
-    .stat.ok .n { color: #2e7d32; } .stat.busy .n { color: #ef6c00; } .stat.open .n { color: #1565c0; }
+    .stat.ok .n { color: var(--lv-ok); } .stat.busy .n { color: var(--lv-warn); } .stat.open .n { color: var(--lv-primary); }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .panel { padding: 16px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #eee; }
     .row:first-of-type { border-top: none; }
     .title { font-weight: 600; } .sub { color: #777; font-size: .82rem; }
     .muted { color: #999; }
+    .err { color: var(--lv-err); }
     @media (max-width: 900px) { .stats { grid-template-columns: repeat(2,1fr); } .cols { grid-template-columns: 1fr; } }
   `],
 })
 export class DashboardComponent {
   private api = inject(ApiService);
   data = signal<DashboardSummary | null>(null);
+  error = signal(false);
 
-  constructor() { this.api.dashboard().subscribe(d => this.data.set(d)); }
+  constructor() {
+    this.api.dashboard().subscribe({
+      next: d => this.data.set(d),
+      error: () => this.error.set(true), // fail loud, not a frozen "Loading…"
+    });
+  }
 }

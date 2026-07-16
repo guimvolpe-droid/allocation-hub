@@ -81,7 +81,7 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
         <mat-label>Location (optional)</mat-label>
         <input matInput [(ngModel)]="location" placeholder="e.g. Brazil" (keyup.enter)="searchGitHub()">
       </mat-form-field>
-      <button mat-flat-button color="accent" [disabled]="extBusy()" (click)="searchGitHub()">
+      <button mat-flat-button class="lv-accent-btn" [disabled]="extBusy()" (click)="searchGitHub()">
         <mat-icon>travel_explore</mat-icon> Search GitHub
       </button>
     </div>
@@ -105,9 +105,18 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
           </div>
           <div class="why">{{ m.explanation }}</div>
         </div>
-        <a mat-stroked-button [href]="m.profileUrl" target="_blank" rel="noopener">
-          <mat-icon>open_in_new</mat-icon> GitHub
-        </a>
+        <div class="ext-actions">
+          <a mat-stroked-button [href]="m.profileUrl" target="_blank" rel="noopener">
+            <mat-icon>open_in_new</mat-icon> GitHub
+          </a>
+          @if (imported().has(m.externalId)) {
+            <span class="pill-imported"><mat-icon inline>check_circle</mat-icon> Imported</span>
+          } @else {
+            <button mat-flat-button class="lv-accent-btn" (click)="importCandidate(m)">
+              <mat-icon>person_add</mat-icon> Import
+            </button>
+          }
+        </div>
       </mat-card>
     } @empty { @if (extSearched() && !extBusy() && !extError()) { <p class="muted">No GitHub candidates found for these skills.</p> } }
   `,
@@ -116,27 +125,30 @@ import { Demand, ExternalMatch, Match } from '../../core/models';
     .head h1 { margin: 0 0 4px; } .sub { color: #666; margin: 0 0 10px; }
     h2 { margin: 8px 0 2px; } .explain { color: #777; margin: 0 0 14px; font-size: .88rem; max-width: 620px; }
     .match { display: flex; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 10px; }
-    .match.top { outline: 2px solid #1565c0; }
-    .score { font-size: 1.7rem; font-weight: 700; width: 56px; text-align: center; color: #b71c1c; }
-    .score.mid { color: #ef6c00; } .score.good { color: #2e7d32; }
+    .match.top { outline: 2px solid var(--lv-primary); }
+    .score { font-size: 1.7rem; font-weight: 700; width: 56px; text-align: center; color: var(--lv-err); }
+    .score.mid { color: var(--lv-warn); } .score.good { color: var(--lv-ok); }
     .avatar { width: 44px; height: 44px; border-radius: 50%; }
     .body { flex: 1 1 auto; }
-    .who { font-weight: 600; } .who a { color: #1565c0; text-decoration: none; } .who a:hover { text-decoration: underline; }
+    .who { font-weight: 600; } .who a { color: var(--lv-primary); text-decoration: none; } .who a:hover { text-decoration: underline; }
     .tag { color: #888; font-weight: 400; font-size: .85rem; }
     .headline { color: #666; font-size: .85rem; margin: 2px 0; }
     .skills { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 4px; }
-    mat-chip.ok { background: #e8f5e9 !important; } mat-chip.miss { background: #ffebee !important; opacity: .8; }
+    mat-chip.ok { background: var(--lv-ok-tint) !important; } mat-chip.miss { background: var(--lv-err-tint) !important; opacity: .8; }
     .why { color: #555; font-size: .88rem; }
     .muted { color: #999; }
-    .err { color: #b71c1c; font-size: .9rem; margin: 6px 0; }
+    .err { color: var(--lv-err); font-size: .9rem; margin: 6px 0; }
     .llm-switch { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; }
     .llm-switch .prov { width: 220px; }
-    .llm-switch .hint { color: #6a1b9a; font-size: .82rem; }
+    .llm-switch .hint { color: var(--lv-accent-ink); font-size: .82rem; }
     .ext-head { margin-top: 30px; border-top: 1px solid #eee; padding-top: 14px; }
-    .ext-head .src { color: #6a1b9a; font-weight: 600; }
+    .ext-head .src { color: var(--lv-accent-ink); font-weight: 600; }
     .ext-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
     .ext-controls .loc { width: 220px; }
-    .match.ext { background: #faf7fd; }
+    .match.ext { background: var(--lv-primary-wash); }
+    .ext-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .pill-imported { display: inline-flex; align-items: center; gap: 4px; background: var(--lv-accent-tint);
+      color: var(--lv-accent-ink); font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; justify-content: center; }
   `],
 })
 export class MatchComponent {
@@ -160,6 +172,7 @@ export class MatchComponent {
   extBusy = signal(false);
   extError = signal<string | null>(null);
   extSearched = signal(false);
+  imported = signal<Set<string>>(new Set());
 
   private id = Number(this.route.snapshot.paramMap.get('id'));
 
@@ -181,7 +194,10 @@ export class MatchComponent {
     this.busy.set(true);
     this.api.matches(this.id, this.provider || undefined).subscribe({
       next: m => { this.matches.set(m); this.busy.set(false); },
-      error: () => this.busy.set(false),
+      error: () => {
+        this.busy.set(false);
+        this.snack.open('Could not load matches — API unavailable?', 'OK', { duration: 4000 });
+      },
     });
   }
 
@@ -196,6 +212,17 @@ export class MatchComponent {
         this.extError.set(err?.error?.message ?? 'Could not reach the GitHub source.');
         this.extBusy.set(false);
       },
+    });
+  }
+
+  importCandidate(m: ExternalMatch): void {
+    this.api.importCandidate(m).subscribe({
+      next: c => {
+        const s = new Set(this.imported()); s.add(m.externalId); this.imported.set(s);
+        this.snack.open(`${m.name} imported as consultant #${c.id}.`, 'OK', { duration: 3500 });
+        this.load(); // the real dev now shows up in the internal ranking, persisted in the DB
+      },
+      error: () => this.snack.open('Could not import candidate.', 'OK', { duration: 3000 }),
     });
   }
 

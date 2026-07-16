@@ -84,6 +84,15 @@ builder.Services.AddSingleton<ILlmProviderRegistry>(sp =>
 });
 builder.Services.AddScoped<ILlmExplanationService, LlmExplanationService>();
 
+// ---- Google sign-in (optional; the SPA only shows the button when a client id is configured) ----
+var googleAuth = new GoogleAuthOptions
+{
+    ClientId = builder.Configuration["GOOGLE_CLIENT_ID"] ?? builder.Configuration["Auth:Google:ClientId"],
+    AllowedEmails = builder.Configuration["GOOGLE_ALLOWED_EMAILS"] ?? builder.Configuration["Auth:Google:AllowedEmails"],
+};
+builder.Services.AddSingleton(googleAuth);
+builder.Services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+
 // ---- Auth ----
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
