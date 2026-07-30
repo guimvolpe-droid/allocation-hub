@@ -1,4 +1,75 @@
-/* Global styles */
+/* Global styles — Lyncas brand theme.
+   Palette taken from lyncas.net: primary purple #4326c4, accent green #39dd85.
+   Material 18 ships prebuilt M3 themes without the --mat-sys-* layer (v19+), so we brand it in two
+   moves: (1) our own --lv-* variables consumed by component styles, and (2) targeted overrides of the
+   component-level M3 tokens the prebuilt theme defines on html. */
+
+:root {
+  /* Brand */
+  --lv-primary: #4326c4;
+  --lv-primary-dark: #331d99;
+  --lv-primary-tint: #eae6f9;   /* pill / chip backgrounds */
+  --lv-primary-wash: #f7f5fd;   /* page / section washes */
+  --lv-accent: #39dd85;
+  --lv-accent-ink: #128a54;     /* green that stays readable as text on white */
+  --lv-accent-tint: #e3fbef;
+
+  /* Status (kept semantic — scores must stay instantly readable) */
+  --lv-ok: #2e7d32;    --lv-ok-tint: #e8f5e9;
+  --lv-warn: #ef6c00;  --lv-warn-tint: #fff3e0;
+  --lv-err: #b71c1c;   --lv-err-tint: #ffebee;
+}
+
+/* Rebrand the Material chrome (prebuilt azure-blue defines these tokens on html; this file loads
+   after it in angular.json's styles array, so these win). */
+html {
+  --mdc-filled-button-container-color: var(--lv-primary);
+  --mdc-filled-button-label-text-color: #fff;
+  --mdc-protected-button-container-color: var(--lv-primary);
+  --mdc-protected-button-label-text-color: #fff;
+  --mdc-outlined-button-label-text-color: var(--lv-primary);
+  --mat-outlined-button-label-text-color: var(--lv-primary);
+  --mdc-text-button-label-text-color: var(--lv-primary);
+  --mat-text-button-label-text-color: var(--lv-primary);
+  --mdc-icon-button-icon-color: inherit;
+  --mat-toolbar-container-background-color: var(--lv-primary);
+  --mat-toolbar-container-text-color: #fff;
+  --mdc-linear-progress-active-indicator-color: var(--lv-primary);
+  --mdc-circular-progress-active-indicator-color: var(--lv-primary);
+  --mdc-outlined-text-field-focus-outline-color: var(--lv-primary);
+  --mdc-outlined-text-field-focus-label-text-color: var(--lv-primary);
+  --mdc-outlined-text-field-caret-color: var(--lv-primary);
+  --mat-option-selected-state-label-text-color: var(--lv-primary);
+  --mat-full-pseudo-checkbox-selected-icon-color: var(--lv-primary);
+  --mat-minimal-pseudo-checkbox-selected-checkmark-color: var(--lv-primary);
+}
+
+/* Highlighted primary chips (demand required-skills) → brand purple. */
+mat-chip.mat-mdc-chip-highlighted.mat-primary {
+  --mdc-chip-elevated-container-color: var(--lv-primary);
+  --mdc-chip-label-text-color: #fff;
+  --mdc-chip-elevated-selected-container-color: var(--lv-primary);
+}
+
+/* Brand-green CTA (external sourcing / AI actions). */
+.lv-accent-btn {
+  --mdc-filled-button-container-color: var(--lv-accent);
+  --mdc-filled-button-label-text-color: #0a3d24;
+}
+
+/* "for Lyncas" badge used in the toolbar and login. */
+.lv-badge {
+  display: inline-block;
+  background: var(--lv-accent);
+  color: #0a3d24;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; color: #1a1a1a; }
 

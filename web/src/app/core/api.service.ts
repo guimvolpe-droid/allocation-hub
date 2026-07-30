@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 import { API_URL } from './config';
 import {
   Allocation, AuditLog, Client, ClientRequest, Consultant, ConsultantRequest,
-  DashboardSummary, Demand, DemandRequest, Match, MatchingSettings, MatchingSettingsRequest
+  DashboardSummary, Demand, DemandRequest, ExternalMatch, LlmProviders, Match,
+  MatchingSettings, MatchingSettingsRequest
 } from './models';
 
 /** Thin typed wrapper over the REST API. One place that knows the endpoints. */
@@ -41,7 +42,28 @@ export class ApiService {
   createDemand(r: DemandRequest) { return this.http.post<Demand>(`${API_URL}/demands`, r); }
   updateDemand(id: number, r: DemandRequest) { return this.http.put<Demand>(`${API_URL}/demands/${id}`, r); }
   deleteDemand(id: number) { return this.http.delete<void>(`${API_URL}/demands/${id}`); }
-  matches(id: number) { return this.http.get<Match[]>(`${API_URL}/demands/${id}/matches`); }
+  matches(id: number, provider?: string): Observable<Match[]> {
+    let params = new HttpParams();
+    if (provider) params = params.set('provider', provider);
+    return this.http.get<Match[]>(`${API_URL}/demands/${id}/matches`, { params });
+  }
+  externalMatches(id: number, source = 'github', location?: string, limit = 6, provider?: string): Observable<ExternalMatch[]> {
+    let params = new HttpParams().set('source', source).set('limit', limit);
+    if (location) params = params.set('location', location);
+    if (provider) params = params.set('provider', provider);
+    return this.http.get<ExternalMatch[]>(`${API_URL}/demands/${id}/external-matches`, { params });
+  }
+
+  // Turn a sourced external candidate into a persisted consultant (idempotent server-side).
+  importCandidate(m: ExternalMatch): Observable<Consultant> {
+    return this.http.post<Consultant>(`${API_URL}/consultants/import`, {
+      externalId: m.externalId, name: m.name, seniority: m.seniority,
+      location: m.location, skills: m.skills, profileUrl: m.profileUrl, source: m.source,
+    });
+  }
+
+  // LLM providers currently usable (for the live provider switch).
+  llmProviders() { return this.http.get<LlmProviders>(`${API_URL}/llm/providers`); }
 
   // Allocations
   listAllocations() { return this.http.get<Allocation[]>(`${API_URL}/allocations`); }

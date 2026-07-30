@@ -4,13 +4,14 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApiService } from '../../core/api.service';
 import { DashboardSummary } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, MatCardModule, MatIconModule, MatButtonModule, MatChipsModule],
+  imports: [RouterLink, MatCardModule, MatIconModule, MatButtonModule, MatChipsModule, MatProgressBarModule],
   template: `
     <h1>Dashboard</h1>
     @if (data(); as d) {
@@ -24,6 +25,7 @@ import { DashboardSummary } from '../../core/models';
       <div class="cols">
         <mat-card class="panel">
           <h2>Top open demands</h2>
+          <p class="panel-hint">Hardest to staff first: highest seniority required, then most skills.</p>
           @for (dem of d.topOpenDemands; track dem.id) {
             <div class="row">
               <div>
@@ -39,6 +41,7 @@ import { DashboardSummary } from '../../core/models';
 
         <mat-card class="panel">
           <h2>Available now</h2>
+          <p class="panel-hint">Free consultants, most senior first.</p>
           @for (c of d.availableNow; track c.id) {
             <div class="row">
               <div>
@@ -50,28 +53,42 @@ import { DashboardSummary } from '../../core/models';
           } @empty { <p class="muted">Nobody available.</p> }
         </mat-card>
       </div>
-    } @else { <p class="muted">Loading…</p> }
+    } @else {
+      @if (error()) { <p class="err">API unavailable — is the backend running on :5080?</p> }
+      @else {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p class="muted">Loading dashboard…</p>
+      }
+    }
   `,
   styles: [`
     h1 { margin: 0 0 16px; }
-    h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    h2 { margin: 0 0 2px; font-size: 1.05rem; }
+    .panel-hint { color: #888; font-size: .78rem; margin: 0 0 12px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
     .stat { text-align: center; padding: 18px 8px; }
     .stat .n { font-size: 2.2rem; font-weight: 700; line-height: 1; }
     .stat .l { color: #666; font-size: .85rem; margin-top: 4px; }
-    .stat.ok .n { color: #2e7d32; } .stat.busy .n { color: #ef6c00; } .stat.open .n { color: #1565c0; }
+    .stat.ok .n { color: var(--lv-ok); } .stat.busy .n { color: var(--lv-warn); } .stat.open .n { color: var(--lv-primary); }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .panel { padding: 16px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #eee; }
     .row:first-of-type { border-top: none; }
     .title { font-weight: 600; } .sub { color: #777; font-size: .82rem; }
     .muted { color: #999; }
+    .err { color: var(--lv-err); }
     @media (max-width: 900px) { .stats { grid-template-columns: repeat(2,1fr); } .cols { grid-template-columns: 1fr; } }
   `],
 })
 export class DashboardComponent {
   private api = inject(ApiService);
   data = signal<DashboardSummary | null>(null);
+  error = signal(false);
 
-  constructor() { this.api.dashboard().subscribe(d => this.data.set(d)); }
+  constructor() {
+    this.api.dashboard().subscribe({
+      next: d => this.data.set(d),
+      error: () => this.error.set(true), // fail loud, not a frozen "Loading…"
+    });
+  }
 }

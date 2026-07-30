@@ -59,8 +59,8 @@ import { AVAILABILITIES, Consultant, ConsultantRequest, SENIORITIES } from '../.
     .search { width: 100%; max-width: 420px; margin-bottom: 8px; }
     .actions { white-space: nowrap; text-align: right; }
     .pill { padding: 2px 8px; border-radius: 10px; font-size: .78rem; }
-    .pill.available { background: #e8f5e9; color: #2e7d32; }
-    .pill.allocated { background: #fff3e0; color: #ef6c00; }
+    .pill.available { background: var(--lv-ok-tint); color: var(--lv-ok); }
+    .pill.allocated { background: var(--lv-warn-tint); color: var(--lv-warn); }
     .pill.unavailable { background: #f0f0f0; color: #777; }
     .empty td { padding: 20px; color: #999; text-align: center; }
     mat-chip { font-size: .75rem !important; }
@@ -134,6 +134,7 @@ export class ConsultantsComponent implements AfterViewInit {
 export class ConsultantDialog {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
+  private snack = inject(MatSnackBar);
   private ref = inject(MatDialogRef<ConsultantDialog>);
   data = inject<Consultant | null>(MAT_DIALOG_DATA);
   seniorities = SENIORITIES; availabilities = AVAILABILITIES;
@@ -156,6 +157,10 @@ export class ConsultantDialog {
       skills: v.skills.split(',').map(s => s.trim()).filter(Boolean),
     };
     const obs = this.data ? this.api.updateConsultant(this.data.id, req) : this.api.createConsultant(req);
-    obs.subscribe(() => this.ref.close(true));
+    obs.subscribe({
+      next: () => this.ref.close(true),
+      // Fail loud: a dead Save button is the worst possible failure in a live demo.
+      error: () => this.snack.open('Could not save consultant.', 'OK', { duration: 3000 }),
+    });
   }
 }

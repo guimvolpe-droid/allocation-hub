@@ -28,7 +28,14 @@ public class DashboardController : ControllerBase
             AvailableConsultants: consultants.Count(c => c.Availability == Availability.Available),
             AllocatedConsultants: consultants.Count(c => c.Availability == Availability.Allocated),
             OpenDemands: openDemands.Count,
-            TopOpenDemands: openDemands.OrderBy(d => d.Title).Take(5).Select(d => d.ToDto()).ToList(),
+            // "Top" = hardest to staff first, not alphabetical: the demands that need the most senior
+            // people, then the most constrained ones (more required skills = smaller candidate pool).
+            // Title only breaks ties, so the order is stable.
+            TopOpenDemands: openDemands
+                .OrderByDescending(d => d.RequiredSeniority)
+                .ThenByDescending(d => d.RequiredSkills.Count)
+                .ThenBy(d => d.Title)
+                .Take(5).Select(d => d.ToDto()).ToList(),
             AvailableNow: consultants.Where(c => c.Availability == Availability.Available)
                 .OrderByDescending(c => c.Seniority).Take(5).Select(c => c.ToDto()).ToList());
     }

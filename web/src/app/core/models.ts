@@ -8,6 +8,7 @@ export const AVAILABILITIES: Availability[] = ['Available', 'Allocated', 'Unavai
 
 export interface User { id: number; name: string; email: string; role: string; }
 export interface AuthResponse { token: string; user: User; }
+export interface AuthConfig { googleEnabled: boolean; googleClientId: string | null; }
 
 export interface Consultant {
   id: number; name: string; email: string; seniority: Seniority; location: string;
@@ -38,6 +39,16 @@ export interface Allocation {
 export interface Match {
   consultantId: number; name: string; seniority: Seniority; availability: Availability;
   score: number; matchedSkills: string[]; missingSkills: string[]; explanation: string;
+  avatarUrl: string | null;
+}
+
+export interface LlmProviders { available: boolean; defaultProvider: string; providers: string[]; }
+
+export interface ExternalMatch {
+  externalId: string; name: string; headline: string | null; profileUrl: string; avatarUrl: string | null;
+  location: string | null; seniority: Seniority; score: number;
+  matchedSkills: string[]; missingSkills: string[]; skills: string[]; explanation: string; source: string;
+  alreadyImported: boolean; consultantId: number | null;
 }
 
 export interface MatchingSettings {

@@ -76,7 +76,13 @@
                   "maximumError": "4kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/core/config.ts",
+                  "with": "src/app/core/config.prod.ts"
+                }
+              ]
             },
             "development": {
               "optimization": false,

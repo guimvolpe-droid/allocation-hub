@@ -16,7 +16,7 @@ import { AuthService } from '../core/auth.service';
   ],
   template: `
     <mat-toolbar color="primary" class="topbar">
-      <span class="brand"><mat-icon>hub</mat-icon>&nbsp;AllocationHub</span>
+      <span class="brand"><mat-icon>hub</mat-icon>&nbsp;AllocationHub&nbsp;&nbsp;<span class="lv-badge">for Lyncas</span></span>
       <span class="spacer"></span>
       <span class="who">{{ auth.user()?.name }}</span>
       <button mat-icon-button (click)="auth.logout()" title="Sign out"><mat-icon>logout</mat-icon></button>
@@ -41,14 +41,14 @@ import { AuthService } from '../core/auth.service';
     </mat-sidenav-container>
   `,
   styles: [`
-    .topbar { position: sticky; top: 0; z-index: 10; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: var(--lv-primary); color: #fff; }
     .brand { display: inline-flex; align-items: center; font-weight: 600; }
     .spacer { flex: 1 1 auto; }
     .who { margin-right: 8px; font-size: .9rem; opacity: .9; }
     .container { position: absolute; top: 64px; bottom: 0; left: 0; right: 0; }
     .sidenav { width: 232px; padding-top: 8px; border-right: 1px solid rgba(0,0,0,.08); }
     .content { padding: 24px; background: #f7f8fa; }
-    a.active { background: rgba(0,0,0,.06); font-weight: 600; }
+    a.active { background: var(--lv-primary-tint); font-weight: 600; color: var(--lv-primary-dark); }
     .section { padding: 14px 16px 4px; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #999; }
   `],
 })

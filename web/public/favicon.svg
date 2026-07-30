@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Lyncas purple tile. Shapes only, no <text>: browsers don't resolve fonts reliably when
+       rendering a favicon, which makes text-based SVG icons silently disappear. -->
+  <rect width="64" height="64" rx="14" fill="#4326c4"/>
+  <!-- "A" drawn with strokes -->
+  <path d="M17 47 L32 17 L47 47" fill="none" stroke="#ffffff" stroke-width="6.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 38 H40" fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round"/>
+  <!-- Lyncas green node -->
+  <circle cx="50" cy="15" r="7.5" fill="#39dd85"/>
+</svg>

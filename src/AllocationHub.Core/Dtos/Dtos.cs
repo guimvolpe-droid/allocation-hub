@@ -39,7 +39,18 @@ public record AllocationRequest(int DemandId, int ConsultantId, DateOnly StartDa
 // ---- Matching ----
 public record MatchDto(
     int ConsultantId, string Name, Seniority Seniority, Availability Availability,
-    int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation);
+    int Score, IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills, string Explanation,
+    // Photo for consultants sourced from GitHub (derived, not stored). Null for regular ones.
+    string? AvatarUrl);
+
+// ---- External sourcing (GitHub) ----
+public record ExternalMatchDto(
+    string ExternalId, string Name, string? Headline, string ProfileUrl, string? AvatarUrl,
+    string? Location, Seniority Seniority, int Score,
+    IReadOnlyList<string> MatchedSkills, IReadOnlyList<string> MissingSkills,
+    IReadOnlyList<string> Skills, string Explanation, string Source,
+    // Already on the bench? Server-side truth, so it survives a page reload.
+    bool AlreadyImported, int? ConsultantId);
 
 // ---- Admin: matching settings ----
 public record MatchingSettingsDto(
